@@ -1,0 +1,6 @@
+{
+  "name": "Sarkari Result - Public Jobs & Recruitment Portal",
+  "description": "Official Sarkari Result public jobs and recruitment portal for latest jobs, teaching jobs, exam results, admit cards, answer keys, and syllabus.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
