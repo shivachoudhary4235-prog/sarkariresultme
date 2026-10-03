@@ -29,6 +29,7 @@ export const Header: React.FC<HeaderProps> = () => {
     { label: 'Answer Key', category: 'answer-key' },
     { label: 'Syllabus', category: 'syllabus' },
     { label: 'Important', category: 'important' },
+    { label: 'Admin Panel', view: 'admin' },
   ];
 
   const handleNavClick = (item: typeof navItems[0]) => {
@@ -89,18 +90,29 @@ export const Header: React.FC<HeaderProps> = () => {
           </button>
         </div>
 
-        {/* Center Main Headings - HERO SECTION */}
-        <div className="flex flex-col items-center justify-center text-center px-2 py-0.5">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[48px] font-black text-[#ab1818] uppercase tracking-normal font-serif leading-none drop-shadow-2xs">
-            SARKARI RESULT ME
-          </h1>
-          <p className="text-sm sm:text-base md:text-[17px] text-[#000066] tracking-wider font-black mt-1 uppercase">
-            WWW.SARKARIRESULTME.COM
-          </p>
-        </div>
+        {/* Right Section: Large Title and Admin Public View Button */}
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex flex-col items-center md:items-end text-center md:text-right px-2 py-0.5">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[46px] font-black text-[#ab1818] uppercase tracking-normal font-serif leading-none drop-shadow-2xs">
+              SARKARI RESULT ME
+            </h1>
+            <p className="text-sm sm:text-base md:text-[17px] text-[#000066] tracking-wider font-black mt-1 uppercase">
+              WWW.SARKARIRESULTME.COM
+            </p>
+          </div>
 
-        {/* Right spacing placeholder or official tag */}
-        <div className="hidden md:flex items-center gap-2">
+          {currentView === 'admin' && (
+            <button
+              onClick={goHome}
+              className="px-3 py-1.5 md:py-2 text-xs md:text-[13px] font-extrabold uppercase transition-all flex items-center gap-1.5 cursor-pointer border shadow-xs bg-[#2e7d32] text-white border-[#2e7d32] hover:bg-green-800 shrink-0"
+              title="Return to Public Portal"
+            >
+              <span className="material-symbols-outlined text-[18px]">
+                visibility
+              </span>
+              <span>Public View</span>
+            </button>
+          )}
         </div>
       </div>
 

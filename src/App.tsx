@@ -35,13 +35,16 @@ const ViewLoader: React.FC = () => (
 const MainContent: React.FC = () => {
   const { currentView, fontScale } = usePortal();
 
-  // Render clean full-width Admin Dashboard without public site header and footer
+  // Render Admin Dashboard with authentic Sarkari Result header
   if (currentView === 'admin') {
     return (
-      <div className="min-h-screen bg-[#f8f9fa] flex flex-col font-sans w-full">
-        <Suspense fallback={<ViewLoader />}>
-          <AdminCMS />
-        </Suspense>
+      <div className={`min-h-screen bg-[#f8f9fa] flex flex-col font-sans font-scale-${fontScale}`}>
+        <Header />
+        <div className="flex-1 w-full">
+          <Suspense fallback={<ViewLoader />}>
+            <AdminCMS />
+          </Suspense>
+        </div>
       </div>
     );
   }

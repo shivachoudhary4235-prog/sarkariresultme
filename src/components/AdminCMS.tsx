@@ -1168,36 +1168,35 @@ export const AdminCMS: React.FC = () => {
 
   return (
     <div className="w-full min-h-screen bg-[#f8f9fa] flex flex-col font-sans">
-      {/* Header Bar matching screenshot */}
-      <div className="bg-[#0a1128] text-white px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3 border-b border-gray-800 shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-[#850008] border border-white/20 flex items-center justify-center font-black text-white text-xs tracking-wider shadow-sm">
-            SRM
-          </div>
-          <div>
-            <h1 className="text-sm sm:text-base font-black uppercase tracking-tight text-white leading-tight">
-              SARKARI RESULT ME
-            </h1>
-            <p className="text-[10px] sm:text-[11px] text-gray-400 font-semibold tracking-wider uppercase">
-              SARKARI RESULT ME — ADMIN PORTAL • COMPLETE PORTAL CONTROL
-            </p>
+      {/* Admin CMS Sub-header Strip */}
+      <div className="bg-[#f0f4f8] text-gray-800 px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 border-b border-gray-300 shrink-0">
+        <div className="flex items-center gap-2.5">
+          <span className="px-2 py-0.5 rounded bg-[#ab1818] text-white font-black text-[11px] tracking-wider uppercase shadow-2xs">
+            ADMIN CMS
+          </span>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+            <span className="text-xs sm:text-sm font-black text-gray-900 uppercase">
+              PORTAL CONTROL CENTER
+            </span>
+            <span className="hidden sm:inline text-gray-400">•</span>
+            <span className="text-[11px] sm:text-xs text-gray-600 font-medium">
+              Manage Live Jobs, Results, Admit Cards & Portal Settings
+            </span>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
           <button
             onClick={goHome}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white hover:text-sky-300 transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-gray-100 text-gray-700 text-xs font-bold rounded border border-gray-300 shadow-2xs transition-colors cursor-pointer"
           >
-            <span className="text-sky-400 text-sm">🌐</span>
-            <span>View Public Site</span>
+            <span className="text-green-600 text-sm">🌐</span>
+            <span>Return to Public Site</span>
           </button>
 
-          <div className="flex items-center gap-2 bg-[#000033]/60 px-2.5 py-1 rounded-full border border-white/10">
-            <span className="w-6 h-6 rounded-full bg-[#850008] text-white flex items-center justify-center text-xs">
-              👤
-            </span>
-            <span className="text-xs font-bold text-white pr-1">Admin</span>
+          <div className="flex items-center gap-2 bg-white px-2.5 py-1 rounded border border-gray-300 text-xs font-bold text-gray-700 shadow-2xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span className="text-gray-900 font-bold">Admin Active</span>
           </div>
         </div>
       </div>
