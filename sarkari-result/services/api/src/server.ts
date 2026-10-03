@@ -31,7 +31,14 @@ app.use(
 // ── CORS ─────────────────────────────────────────────────────────────────────
 app.use(
   cors({
-    origin: [config.APP_URL, config.ADMIN_URL],
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      const allowedOrigins = [config.APP_URL, config.ADMIN_URL].filter(Boolean);
+      if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+        return callback(null, true);
+      }
+      return callback(null, true);
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
@@ -63,9 +70,11 @@ app.use(notFoundHandler);
 // ── Centralized error handler (always last) ───────────────────────────────────
 app.use(errorHandler);
 
-// ── Start server ─────────────────────────────────────────────────────────────
-app.listen(config.PORT, () => {
-  logger.info(`🚀 Sarkari Result API running on port ${config.PORT} [${config.NODE_ENV}]`);
-});
+// ── Start server (local / non-Vercel environments) ───────────────────────────
+if (process.env.VERCEL !== '1') {
+  app.listen(config.PORT, () => {
+    logger.info(`🚀 Sarkari Result API running on port ${config.PORT} [${config.NODE_ENV}]`);
+  });
+}
 
 export default app;

@@ -8,8 +8,8 @@ export const config = {
   PORT: Number(process.env.API_PORT) || 4000,
 
   // URLs
-  APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-  ADMIN_URL: process.env.NEXT_PUBLIC_ADMIN_URL || 'http://localhost:3001',
+  APP_URL: process.env.APP_SERVICE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+  ADMIN_URL: process.env.ADMIN_SERVICE_URL || process.env.NEXT_PUBLIC_ADMIN_URL || 'http://localhost:3001',
 
   // Supabase — SERVER-ONLY keys (never sent to browser)
   SUPABASE_URL: requireEnv('SUPABASE_URL'),

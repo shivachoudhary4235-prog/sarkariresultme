@@ -47,8 +47,11 @@ function LoginForm() {
     const session = await supabase.auth.getSession();
     const token = session.data.session?.access_token;
 
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
+    const verifyUrl = apiBase ? `${apiBase.replace(/\/$/, '')}/api/admin/auth/verify` : '/api/admin/auth/verify';
+
     const verifyRes = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/admin/auth/verify`,
+      verifyUrl,
       { headers: { Authorization: `Bearer ${token}` } }
     );
 

@@ -119,7 +119,7 @@ export const PortalProvider: React.FC<PortalProviderProps> = ({
     if (view === 'home') {
       goHome();
     } else if (view === 'admin') {
-      const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || 'http://localhost:3001/admin';
+      const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || '/admin';
       window.open(adminUrl, '_blank');
     }
   };

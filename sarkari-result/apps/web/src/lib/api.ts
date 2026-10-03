@@ -12,11 +12,34 @@ import type {
   ApiSuccessResponse,
 } from '@sarkari/shared-types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+function resolveTargetUrl(path: string): string {
+  // 1. Internal Vercel Service Binding (injected into server runtime)
+  const serviceUrl = process.env.API_SERVICE_URL;
+  if (serviceUrl) {
+    const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+    const baseWithSlash = serviceUrl.endsWith('/') ? serviceUrl : `${serviceUrl}/`;
+    return new URL(cleanPath, baseWithSlash).toString();
+  }
+
+  // 2. Explicit public API URL if configured
+  const publicApiUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (publicApiUrl) {
+    const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+    const baseWithSlash = publicApiUrl.endsWith('/') ? publicApiUrl : `${publicApiUrl}/`;
+    return new URL(cleanPath, baseWithSlash).toString();
+  }
+
+  // 3. In browser: use relative path through Vercel /api rewrite; in local Node: fallback to localhost
+  if (typeof window !== 'undefined') {
+    return path.startsWith('/') ? path : `/${path}`;
+  }
+  return `http://localhost:4000${path.startsWith('/') ? path : `/${path}`}`;
+}
 
 async function apiFetch<T>(path: string): Promise<T | null> {
   try {
-    const res = await fetch(`${API_URL}${path}`, {
+    const url = resolveTargetUrl(path);
+    const res = await fetch(url, {
       // Next.js 15 caching — revalidate every 60 seconds for public content
       next: { revalidate: 60 },
     });

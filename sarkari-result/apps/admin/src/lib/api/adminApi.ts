@@ -6,7 +6,29 @@
 import { createSupabaseBrowserClient } from '../supabase/browser';
 import type { NotificationItem, TickerItem, FeaturedTile, AuditLog } from '@sarkari/shared-types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+function resolveTargetUrl(path: string): string {
+  // 1. Internal Vercel Service Binding (injected into server runtime)
+  const serviceUrl = process.env.API_SERVICE_URL;
+  if (serviceUrl) {
+    const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+    const baseWithSlash = serviceUrl.endsWith('/') ? serviceUrl : `${serviceUrl}/`;
+    return new URL(cleanPath, baseWithSlash).toString();
+  }
+
+  // 2. Explicit public API URL if configured
+  const publicApiUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (publicApiUrl) {
+    const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+    const baseWithSlash = publicApiUrl.endsWith('/') ? publicApiUrl : `${publicApiUrl}/`;
+    return new URL(cleanPath, baseWithSlash).toString();
+  }
+
+  // 3. In browser: use relative path through Vercel /api rewrite; in local Node: fallback to localhost
+  if (typeof window !== 'undefined') {
+    return path.startsWith('/') ? path : `/${path}`;
+  }
+  return `http://localhost:4000${path.startsWith('/') ? path : `/${path}`}`;
+}
 
 async function getAuthHeader(): Promise<Record<string, string>> {
   const supabase = createSupabaseBrowserClient();
@@ -17,7 +39,8 @@ async function getAuthHeader(): Promise<Record<string, string>> {
 
 async function adminFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const headers = await getAuthHeader();
-  const res = await fetch(`${API_URL}${path}`, { ...options, headers: { ...headers, ...options?.headers } });
+  const url = resolveTargetUrl(path);
+  const res = await fetch(url, { ...options, headers: { ...headers, ...options?.headers } });
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({ message: 'An error occurred.' }));

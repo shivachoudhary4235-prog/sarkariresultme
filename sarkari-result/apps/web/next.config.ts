@@ -20,8 +20,8 @@ const nextConfig: NextConfig = {
   // All environment variables that go to browser are NEXT_PUBLIC_
   // SERVER-ONLY vars (SUPABASE_SECRET_KEY, GEMINI_API_KEY) are never exposed
   env: {
-    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL!,
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL!,
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || '',
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || '',
   },
 };
 
