@@ -24,6 +24,9 @@ export function AdminHeader({ user }: Props) {
             <img
               src="/sarkari-result-me-emblem.png"
               alt="Sarkari Result Me Official Emblem"
+              width={56}
+              height={56}
+              style={{ width: '56px', height: '56px', maxWidth: '56px', maxHeight: '56px' }}
               className="w-12 h-12 sm:w-14 sm:h-14 shrink-0 transition-transform group-hover:scale-105 object-contain"
             />
 

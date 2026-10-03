@@ -78,6 +78,12 @@
       }
     },
     {
+      "source": "/_next/(.*)",
+      "destination": {
+        "service": "admin"
+      }
+    },
+    {
       "source": "/(.*)",
       "destination": {
         "service": "app"
