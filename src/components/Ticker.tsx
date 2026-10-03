@@ -34,7 +34,7 @@ export const Ticker: React.FC = () => {
   );
 
   return (
-    <div className="w-full bg-[#fee2de] border border-[#f9dcd9] rounded-none p-2 mb-3.5 overflow-hidden">
+    <div className="w-full bg-[#fee2de] border border-[#f9dcd9] rounded-none p-2 mb-3.5 overflow-hidden min-h-[108px]">
       {/* Top Alert Header */}
       <div className="flex items-center justify-center gap-2 mb-1.5">
         <span className="bg-[#850008] text-white text-xs font-black px-2.5 py-0.5 uppercase tracking-wider">
@@ -55,7 +55,7 @@ export const Ticker: React.FC = () => {
               {row1.map((item, idx) => (
                 <React.Fragment key={item.id}>
                   {renderTickerButton(item)}
-                  {idx < row1.length - 1 && <span className="text-gray-400 font-normal">||</span>}
+                  {idx < row1.length - 1 && <span className="text-gray-700 font-normal">||</span>}
                 </React.Fragment>
               ))}
             </div>
@@ -72,7 +72,7 @@ export const Ticker: React.FC = () => {
               {row2.map((item, idx) => (
                 <React.Fragment key={item.id}>
                   {renderTickerButton(item)}
-                  {idx < row2.length - 1 && <span className="text-gray-400 font-normal">||</span>}
+                  {idx < row2.length - 1 && <span className="text-gray-700 font-normal">||</span>}
                 </React.Fragment>
               ))}
             </div>
@@ -89,7 +89,7 @@ export const Ticker: React.FC = () => {
               {row3.map((item, idx) => (
                 <React.Fragment key={item.id}>
                   {renderTickerButton(item)}
-                  {idx < row3.length - 1 && <span className="text-gray-400 font-normal">||</span>}
+                  {idx < row3.length - 1 && <span className="text-gray-700 font-normal">||</span>}
                 </React.Fragment>
               ))}
             </div>

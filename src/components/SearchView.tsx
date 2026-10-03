@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { usePortal } from '../context/PortalContext';
+import { searchCuratedKeywords } from '../data/curatedSeoKeywords';
 
 export const SearchView: React.FC = () => {
   const { searchQuery, setSearchQuery, notifications, openNotification, goHome } = usePortal();
@@ -17,6 +18,11 @@ export const SearchView: React.FC = () => {
       item.shortDescription.toLowerCase().includes(q)
     );
   });
+
+  const relatedTopics = useMemo(() => {
+    if (!q) return [];
+    return searchCuratedKeywords(q, 6);
+  }, [q]);
 
   return (
     <div className="w-full bg-white border border-[#ab1818] p-3 md:p-5 mb-6 shadow-sm">
@@ -39,7 +45,7 @@ export const SearchView: React.FC = () => {
             Search Results for &ldquo;{searchQuery || 'All'}&rdquo;
           </h1>
           <p className="text-xs sm:text-sm text-gray-300">
-            Found <span className="font-bold text-[#ffea00]">{results.length}</span> matching records in official portal
+            Found <span className="font-bold text-[#ffea00]">{results.length}</span> matching official records
           </p>
         </div>
         <button
@@ -113,12 +119,63 @@ export const SearchView: React.FC = () => {
           </div>
         ))}
 
+        {/* Candidate Help Desk when 0 exact notices match */}
         {results.length === 0 && (
-          <div className="p-10 text-center text-gray-500 text-sm sm:text-base">
-            No examinations or vacancies matched your search term &ldquo;{searchQuery}&rdquo;. Try another board name or keyword.
+          <div className="p-6 text-center text-gray-700 bg-white">
+            <div className="bg-[#fff9e6] border-2 border-amber-400 p-4 max-w-xl mx-auto mb-6 text-left shadow-2xs">
+              <div className="flex items-center gap-2 text-amber-900 font-bold mb-1">
+                <span className="material-symbols-outlined text-[20px] text-amber-600">help</span>
+                <span>Candidate Help Desk: No exact post titled &ldquo;{searchQuery}&rdquo;</span>
+              </div>
+              <p className="text-xs text-amber-900 leading-relaxed">
+                The specific vacancy or result might be published under its parent Commission board. Explore verified resources and exam hubs below:
+              </p>
+            </div>
+
+            {relatedTopics.length > 0 && (
+              <div className="max-w-2xl mx-auto text-left">
+                <h3 className="text-xs sm:text-sm font-black text-[#850008] uppercase mb-3 flex items-center gap-1.5 font-serif border-b border-gray-200 pb-1.5">
+                  <span className="material-symbols-outlined text-[18px]">verified</span>
+                  <span>Verified Official Examination Hubs for &ldquo;{searchQuery}&rdquo;</span>
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {relatedTopics.map((topic) => (
+                    <div
+                      key={topic.id}
+                      className="p-3 border border-gray-300 bg-[#f9fafb] hover:bg-white hover:border-[#850008] transition-all flex flex-col justify-between"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 bg-[#850008] text-white inline-block">
+                            {topic.category}
+                          </span>
+                          <span className="text-[10px] font-bold text-gray-500 uppercase">
+                            {topic.intent}
+                          </span>
+                        </div>
+                        <h4 className="text-xs sm:text-sm font-bold text-gray-900 leading-snug">
+                          {topic.keyword}
+                        </h4>
+                        <span className="text-[11px] text-gray-500 font-mono block mt-1">
+                          {topic.targetSlug}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSearchQuery(topic.category)}
+                        className="mt-2 text-xs text-[#000dff] hover:text-[#850008] hover:underline font-bold text-left cursor-pointer"
+                      >
+                        Explore {topic.category} Updates →
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
     </div>
   );
 };
+

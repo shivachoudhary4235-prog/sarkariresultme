@@ -29,6 +29,27 @@
   }
 }
 
+/* Zero-Shift Icon Stabilization: Prevents raw text flash (FOUT) before icon font loads */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined', sans-serif;
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  overflow: hidden;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  white-space: nowrap;
+  direction: ltr;
+  vertical-align: middle;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
+
 /* Dynamic Font Scaling Utilities for enhanced readability */
 .font-scale-standard {
   font-size: 100%;
@@ -42,15 +63,20 @@
   font-size: 116%;
 }
 
+/* Offscreen Content Optimization for Mobile Speed */
+.content-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 400px;
+}
+
 @keyframes moveLeftRight {
-  0% { transform: translateX(-30px); }
-  100% { transform: translateX(30px); }
+  0% { transform: translateX(-15px); }
+  100% { transform: translateX(15px); }
 }
 
 .floating-blue-ticker {
   display: inline-block;
-  animation: moveLeftRight 5s ease-in-out infinite alternate;
-  will-change: transform;
+  animation: moveLeftRight 6s ease-in-out infinite alternate;
 }
 
 .floating-blue-ticker:hover {
@@ -65,9 +91,18 @@
 .animate-marquee {
   display: inline-block;
   white-space: nowrap;
-  animation: marquee 30s linear infinite;
+  animation: marquee 35s linear infinite;
 }
 
 .animate-marquee:hover {
   animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .floating-blue-ticker,
+  .animate-marquee,
+  .animate-pulse,
+  .animate-ping {
+    animation: none !important;
+  }
 }

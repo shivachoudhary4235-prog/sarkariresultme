@@ -2535,7 +2535,7 @@ export const FAQS: FAQItem[] = [
   },
   {
     id: 'faq-6',
-    question: 'Q6. How do I identify the genuine, official Sarkari Result Me website?',
-    answer: 'The official trademark is registered under Intellectual Property India (Word Mark Reg No. 4531613 & Device Mark Reg No. 5569166). Always confirm that the address in your browser address bar is precisely www.sarkariresultme.com.',
+    question: 'Q6. How do I identify the genuine Sarkari Result Me website?',
+    answer: 'Always confirm that the address in your browser address bar is precisely www.sarkariresultme.com. SarkariResultMe.com is an independent informational portal dedicated to organizing recruitment notifications and directing candidates to official commission portals.',
   },
 ];

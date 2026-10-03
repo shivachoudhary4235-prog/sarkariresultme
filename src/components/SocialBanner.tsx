@@ -2,8 +2,8 @@ import React from 'react';
 
 export const SocialBanner: React.FC = () => {
   const channels = [
-    { name: 'WhatsApp', count: '6.3M+', unit: 'Followers', color: 'text-[#2e7d32]', href: 'https://whatsapp.com' },
-    { name: 'Telegram', count: '1.5M+', unit: 'Members', color: 'text-[#004076]', href: 'https://telegram.org' },
+    { name: 'WhatsApp', count: '6.3M+', unit: 'Followers', color: 'text-[#2e7d32]', href: 'https://whatsapp.com/channel/0029VbDTiYy1dAw2mrPX7a2m' },
+    { name: 'Telegram', count: '1.5M+', unit: 'Members', color: 'text-[#004076]', href: 'https://t.me/getsarkariresultme' },
     { name: 'Instagram', count: '640K+', unit: 'Followers', color: 'text-[#c2185b]', href: 'https://instagram.com' },
     { name: 'YouTube', count: '250K+', unit: 'Subscribers', color: 'text-[#d32f2f]', href: 'https://youtube.com' },
     { name: 'Facebook', count: '861K+', unit: 'Likes', color: 'text-[#001a40]', href: 'https://facebook.com' },

@@ -6,7 +6,9 @@ export type NotificationCategory =
   | 'answer-key'
   | 'syllabus'
   | 'outsourcing'
-  | 'important';
+  | 'important'
+  | 'admission'
+  | 'certificate';
 
 export type StatusBadgeType =
   | 'DECLARED'
@@ -101,4 +103,18 @@ export interface FAQItem {
   answer: string;
 }
 
-export type ActiveScreen = 'home' | 'directory' | 'detail' | 'admin' | 'search';
+export type ActiveScreen =
+  | 'home'
+  | 'directory'
+  | 'detail'
+  | 'admin'
+  | 'search'
+  | 'about'
+  | 'contact'
+  | 'disclaimer'
+  | 'privacy-policy'
+  | 'cookie-policy'
+  | 'terms'
+  | 'editorial-policy'
+  | 'correction-policy'
+  | 'sitemap';

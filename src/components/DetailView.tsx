@@ -1,5 +1,6 @@
 import React from 'react';
 import { usePortal } from '../context/PortalContext';
+import { openPdfInBrowser, downloadPdfFile } from '../utils/pdfUtils';
 
 export const DetailView: React.FC = () => {
   const { selectedItem, goHome, openCategory } = usePortal();
@@ -57,14 +58,34 @@ export const DetailView: React.FC = () => {
       {/* Main Title Box */}
       <div className="bg-[#ab1818] text-white p-3.5 sm:p-5 text-center mb-4 sm:mb-5">
         <div className="flex items-center justify-center gap-2 mb-2">
-          {selectedItem.statusBadge === 'UPCOMING' && (
-            <span className="bg-[#6b21a8] text-white text-xs font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider animate-pulse border border-purple-300">
-              UPCOMING NOTIFICATION
+          {selectedItem.statusBadge === 'NEW' && (
+            <span className="bg-[#dc2626] text-white text-xs font-black px-3 py-1 rounded-sm uppercase tracking-wider animate-pulse shadow-xs border border-red-300">
+              🔥 NEW NOTIFICATION
             </span>
           )}
-          {selectedItem.statusBadge && selectedItem.statusBadge !== 'UPCOMING' && (
-            <span className="bg-[#fee2de] text-[#850008] text-xs font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider border border-[#f9dcd9]">
-              {selectedItem.statusBadge}
+          {selectedItem.statusBadge === 'ACTIVE' && (
+            <span className="bg-[#15803d] text-white text-xs font-black px-3 py-1 rounded-sm uppercase tracking-wider shadow-xs border border-emerald-300">
+              ⚡ ACTIVE REGISTRATION (OPEN)
+            </span>
+          )}
+          {selectedItem.statusBadge === 'UPCOMING' && (
+            <span className="bg-[#7e22ce] text-white text-xs font-black px-3 py-1 rounded-sm uppercase tracking-wider animate-pulse shadow-xs border border-purple-300">
+              ⏳ UPCOMING NOTIFICATION
+            </span>
+          )}
+          {selectedItem.statusBadge === 'OUT' && (
+            <span className="bg-[#1d4ed8] text-white text-xs font-black px-3 py-1 rounded-sm uppercase tracking-wider shadow-xs border border-blue-300">
+              📢 OUT NOW
+            </span>
+          )}
+          {selectedItem.statusBadge === 'DECLARED' && (
+            <span className="bg-[#991b1b] text-white text-xs font-black px-3 py-1 rounded-sm uppercase tracking-wider shadow-xs border border-red-500">
+              🎯 RESULT DECLARED
+            </span>
+          )}
+          {selectedItem.statusBadge === 'EXTENDED' && (
+            <span className="bg-[#d97706] text-white text-xs font-black px-3 py-1 rounded-sm uppercase tracking-wider shadow-xs border border-amber-300">
+              ⏳ LAST DATE EXTENDED
             </span>
           )}
         </div>
@@ -401,21 +422,7 @@ export const DetailView: React.FC = () => {
               </tr>
             )}
 
-            <tr className="hover:bg-[#fff0ee] transition-colors">
-              <td className="p-3 sm:p-3.5 font-bold text-[#850008] border-r border-gray-200 text-sm sm:text-base">
-                Download Official Notification PDF
-              </td>
-              <td className="p-3 sm:p-3.5">
-                <a
-                  href={selectedItem.notificationUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[#000dff] hover:text-[#ab1818] hover:underline font-bold text-sm sm:text-base"
-                >
-                  Click Here to View Notice
-                </a>
-              </td>
-            </tr>
+            {/* Official Commission Website (Placed right after Apply Online per requested sequence) */}
             <tr className="hover:bg-[#fff0ee] transition-colors">
               <td className="p-3 sm:p-3.5 font-bold text-[#850008] border-r border-gray-200 text-sm sm:text-base">
                 Official Commission Website
@@ -425,10 +432,40 @@ export const DetailView: React.FC = () => {
                   href={selectedItem.officialUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[#000dff] hover:text-[#ab1818] hover:underline font-bold text-sm sm:text-base"
+                  className="text-[#000dff] hover:text-[#ab1818] hover:underline font-bold text-sm sm:text-base inline-flex items-center gap-1.5"
                 >
-                  {selectedItem.organization} Official Portal
+                  <span>{selectedItem.organization} Official Portal</span>
+                  <span className="material-symbols-outlined text-[15px]">open_in_new</span>
                 </a>
+              </td>
+            </tr>
+
+            {/* Download Official Notification PDF */}
+            <tr className="hover:bg-[#fff0ee] transition-colors bg-[#fffbfb]">
+              <td className="p-3 sm:p-3.5 font-bold text-[#850008] border-r border-gray-200 text-sm sm:text-base">
+                Download Official Notification PDF
+              </td>
+              <td className="p-3 sm:p-3.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => downloadPdfFile(selectedItem.notificationUrl, `${selectedItem.slug}-official-notification.pdf`)}
+                    className="bg-[#ab1818] hover:bg-[#850008] text-white font-bold text-xs sm:text-sm px-3.5 py-1.5 uppercase transition-colors inline-flex items-center gap-1.5 shadow-xs cursor-pointer"
+                    title="Direct Download PDF to your computer"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">download</span>
+                    <span>Download Official PDF</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openPdfInBrowser(selectedItem.notificationUrl, `${selectedItem.slug}-official-notification.pdf`)}
+                    className="bg-[#000066] hover:bg-[#001a40] text-white font-bold text-xs sm:text-sm px-3.5 py-1.5 uppercase transition-colors inline-flex items-center gap-1.5 shadow-xs cursor-pointer"
+                    title="Open PDF cleanly in browser"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">visibility</span>
+                    <span>View / Read Online</span>
+                  </button>
+                </div>
               </td>
             </tr>
 
@@ -474,7 +511,7 @@ export const DetailView: React.FC = () => {
               </td>
               <td className="p-3 sm:p-3.5">
                 <a
-                  href={selectedItem.telegramUrl || "https://t.me"}
+                  href={selectedItem.telegramUrl || "https://t.me/getsarkariresultme"}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-[#000dff] hover:underline font-bold text-sm sm:text-base"
@@ -489,7 +526,7 @@ export const DetailView: React.FC = () => {
               </td>
               <td className="p-3 sm:p-3.5">
                 <a
-                  href={selectedItem.whatsappUrl || "https://whatsapp.com"}
+                  href={selectedItem.whatsappUrl || "https://whatsapp.com/channel/0029VbDTiYy1dAw2mrPX7a2m"}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-[#000dff] hover:underline font-bold text-sm sm:text-base"

@@ -213,15 +213,36 @@ export const DirectoryView: React.FC = () => {
                   >
                     {item.title}
                   </button>
-                  {item.statusBadge === 'UPCOMING' ? (
-                    <span className="bg-[#6b21a8] text-white text-[10px] font-black px-1.5 py-0.5 ml-2 uppercase rounded-[1px] animate-pulse">
+                  {item.statusBadge === 'NEW' && (
+                    <span className="bg-[#dc2626] text-white text-[10px] font-black px-1.5 py-0.5 ml-2 uppercase rounded-[1px] animate-pulse ring-1 ring-red-400">
+                      NEW
+                    </span>
+                  )}
+                  {item.statusBadge === 'ACTIVE' && (
+                    <span className="bg-[#15803d] text-white text-[10px] font-black px-1.5 py-0.5 ml-2 uppercase rounded-[1px] ring-1 ring-emerald-500">
+                      ACTIVE
+                    </span>
+                  )}
+                  {item.statusBadge === 'UPCOMING' && (
+                    <span className="bg-[#7e22ce] text-white text-[10px] font-black px-1.5 py-0.5 ml-2 uppercase rounded-[1px] animate-pulse ring-1 ring-purple-400">
                       UPCOMING
                     </span>
-                  ) : item.statusBadge ? (
-                    <span className="bg-[#d32f2f] text-white text-[10px] font-black px-1.5 py-0.5 ml-2 uppercase rounded-[1px]">
-                      {item.statusBadge}
+                  )}
+                  {item.statusBadge === 'OUT' && (
+                    <span className="bg-[#1d4ed8] text-white text-[10px] font-black px-1.5 py-0.5 ml-2 uppercase rounded-[1px] ring-1 ring-blue-400">
+                      OUT
                     </span>
-                  ) : null}
+                  )}
+                  {item.statusBadge === 'DECLARED' && (
+                    <span className="bg-[#991b1b] text-white text-[10px] font-black px-1.5 py-0.5 ml-2 uppercase rounded-[1px] ring-1 ring-red-700">
+                      DECLARED
+                    </span>
+                  )}
+                  {item.statusBadge === 'EXTENDED' && (
+                    <span className="bg-[#d97706] text-white text-[10px] font-black px-1.5 py-0.5 ml-2 uppercase rounded-[1px] ring-1 ring-amber-400">
+                      EXTENDED
+                    </span>
+                  )}
                 </td>
                 <td className="p-3 text-gray-800 font-semibold border-r border-gray-200 whitespace-nowrap">
                   {item.organization}

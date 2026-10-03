@@ -6,12 +6,6 @@ export const Header: React.FC = () => {
   const { currentView, selectedCategory, openCategory, goHome, setView } = usePortal();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Logo URL from original HTML prototype, with fallback badge
-  const LOGO_URL =
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuDTKU3-5tu1O-Vdq5x1p-jGznQ3cV_K9Qha12OvdK16qOeLhBPI56hAx9T92E4lLVE3Tp0yR5UUn-FKUIISGw7iRuLrU0vK7QiRlROfHq-i2fKedtrjv637EIJVvYI7b4Q2HrASoFOZggygqVK8A5Y1HJ81Xse7eiXX999H3geCTQHhsaOXiT8TFrzHIFXGrxXdPFKyXGeuc-i91ecS-SEAT-Ptjs5Tpgi7mIPIH_fyGoV8-0PYhub1';
-
-  const [logoLoaded, setLogoLoaded] = useState(true);
-
   const navItems: {
     label: string;
     category?: NotificationCategory;
@@ -26,7 +20,6 @@ export const Header: React.FC = () => {
     { label: 'Answer Key', category: 'answer-key' },
     { label: 'Syllabus', category: 'syllabus' },
     { label: 'Important', category: 'important' },
-    { label: 'Admin CMS', view: 'admin' },
   ];
 
   const handleNavClick = (item: typeof navItems[0]) => {
@@ -50,27 +43,20 @@ export const Header: React.FC = () => {
   return (
     <header className="w-full bg-white border-b-2 border-[#ab1818] shadow-sm">
       {/* Top Banner Row */}
-      <div className="max-w-[1240px] mx-auto px-4 py-3 sm:py-4 flex flex-col md:flex-row items-center justify-between gap-3 md:gap-4">
+      <div className="max-w-[1240px] mx-auto px-4 py-3 sm:py-4 flex flex-col md:flex-row items-center justify-between gap-3 md:gap-4 min-h-[72px] sm:min-h-[84px]">
         {/* Brand Left Lockup */}
         <div className="w-full md:w-auto flex items-center justify-between">
           <button
             onClick={goHome}
-            className="flex items-center gap-3.5 text-left focus:outline-none group cursor-pointer"
+            className="flex items-center gap-3 text-left focus:outline-none group cursor-pointer"
+            aria-label="Sarkari Result Official Home"
           >
-            {logoLoaded ? (
-              <img
-                src={LOGO_URL}
-                alt="Sarkari Result Official Logo"
-                className="h-13 md:h-16 w-auto object-contain transition-transform group-hover:scale-105"
-                onError={() => setLogoLoaded(false)}
-              />
-            ) : (
-              <div className="w-13 h-13 md:w-16 md:h-16 rounded-full border-2 border-[#5c2378] bg-[#671d79] text-white flex flex-col items-center justify-center p-0.5 text-center shadow-inner">
-                <span className="text-[9px] font-bold leading-tight uppercase">SARKARI</span>
-                <span className="text-[10px] font-black leading-none text-yellow-300">RESULT</span>
-                <span className="text-[8px] leading-tight">.COM</span>
-              </div>
-            )}
+            {/* Official Sarkari Result Me Emblem */}
+            <img
+              src="/sarkari-result-me-emblem.png"
+              alt="Sarkari Result Me Official Emblem"
+              className="w-12 h-12 sm:w-14 sm:h-14 shrink-0 transition-transform group-hover:scale-105 object-contain"
+            />
 
             <div className="flex flex-col text-left">
               <span className="text-xl sm:text-2xl md:text-[26px] font-black text-[#850008] tracking-tight leading-none uppercase font-serif">
@@ -88,9 +74,15 @@ export const Header: React.FC = () => {
             className="md:hidden p-2 text-gray-800 hover:text-black border border-gray-400 cursor-pointer"
             aria-label="Toggle navigation"
           >
-            <span className="material-symbols-outlined text-[26px]">
-              {mobileMenuOpen ? 'close' : 'menu'}
-            </span>
+            {mobileMenuOpen ? (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
           </button>
         </div>
 
@@ -104,23 +96,21 @@ export const Header: React.FC = () => {
           </p>
         </div>
 
-        {/* Right Action: Admin Toggle */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          <button
-            onClick={() => setView(currentView === 'admin' ? 'home' : 'admin')}
-            className={`px-3.5 py-1.5 md:py-2 text-xs md:text-[13px] font-extrabold uppercase transition-all flex items-center gap-1.5 cursor-pointer border shadow-xs ${
-              currentView === 'admin'
-                ? 'bg-[#2e7d32] text-white border-[#2e7d32] hover:bg-green-800'
-                : 'bg-[#ab1818] text-white border-[#ab1818] hover:bg-[#8a0c0c]'
-            }`}
-            title="Switch between Public Portal and Admin Publishing CMS"
-          >
-            <span className="material-symbols-outlined text-[18px]">
-              {currentView === 'admin' ? 'visibility' : 'dashboard_customize'}
-            </span>
-            <span>{currentView === 'admin' ? 'Public View' : 'Admin CMS'}</span>
-          </button>
-        </div>
+        {/* Right Action: Only visible when inside Admin CMS to return to Public Site */}
+        {currentView === 'admin' && (
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              onClick={goHome}
+              className="px-3.5 py-1.5 md:py-2 text-xs md:text-[13px] font-extrabold uppercase transition-all flex items-center gap-1.5 cursor-pointer border shadow-xs bg-[#2e7d32] text-white border-[#2e7d32] hover:bg-green-800"
+              title="Return to Public Portal"
+            >
+              <span className="material-symbols-outlined text-[18px]">
+                visibility
+              </span>
+              <span>Public View</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Dark Navy Navigation Strip */}
@@ -181,7 +171,7 @@ export const Header: React.FC = () => {
             <span className="material-symbols-outlined text-[16px]">android</span>
             <span>Sarkari Result Android App</span>
           </a>
-          <span className="text-white/40 hidden sm:inline">|</span>
+          <span className="text-white/80 hidden sm:inline">|</span>
           <a
             href="https://apple.com/app-store/"
             target="_blank"
@@ -191,9 +181,9 @@ export const Header: React.FC = () => {
             <span className="material-symbols-outlined text-[16px]">phone_iphone</span>
             <span>Apple IOS App</span>
           </a>
-          <span className="text-white/40 hidden sm:inline">|</span>
+          <span className="text-white/80 hidden sm:inline">|</span>
           <a
-            href="https://t.me"
+            href="https://t.me/getsarkariresultme"
             target="_blank"
             rel="noopener noreferrer"
             className="text-white hover:underline flex items-center gap-1.5"
@@ -201,7 +191,7 @@ export const Header: React.FC = () => {
             <span className="material-symbols-outlined text-[16px]">send</span>
             <span>Telegram Channel</span>
           </a>
-          <span className="text-white/40 hidden sm:inline">|</span>
+          <span className="text-white/80 hidden sm:inline">|</span>
           <a
             href="https://youtube.com"
             target="_blank"
@@ -211,9 +201,9 @@ export const Header: React.FC = () => {
             <span className="material-symbols-outlined text-[16px]">smart_display</span>
             <span>YouTube Channel</span>
           </a>
-          <span className="text-white/40 hidden md:inline">|</span>
+          <span className="text-white/80 hidden md:inline">|</span>
           <a
-            href="https://whatsapp.com"
+            href="https://whatsapp.com/channel/0029VbDTiYy1dAw2mrPX7a2m"
             target="_blank"
             rel="noopener noreferrer"
             className="text-white hover:underline flex items-center gap-1.5"
@@ -221,7 +211,7 @@ export const Header: React.FC = () => {
             <span className="material-symbols-outlined text-[16px]">chat</span>
             <span>WhatsApp Channel</span>
           </a>
-          <span className="text-white/40 hidden md:inline">|</span>
+          <span className="text-white/80 hidden md:inline">|</span>
           <a
             href="https://instagram.com"
             target="_blank"

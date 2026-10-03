@@ -11,6 +11,7 @@ import {
   INITIAL_TICKER_ITEMS,
   INITIAL_FEATURED_TILES,
 } from '../data/seedData';
+import { supabaseApi, isSupabaseReady } from '../services/supabaseClient';
 
 interface PortalContextType {
   notifications: NotificationItem[];
@@ -132,12 +133,143 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return INITIAL_FEATURED_TILES;
   });
 
-  const [currentView, setCurrentView] = useState<ActiveScreen>('home');
-  const [selectedCategory, setSelectedCategory] = useState<NotificationCategory | 'all'>('all');
-  const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
+  const VALID_CATEGORIES: NotificationCategory[] = [
+    'result',
+    'admit-card',
+    'latest-job',
+    'teaching',
+    'answer-key',
+    'syllabus',
+    'outsourcing',
+    'important',
+    'admission',
+    'certificate',
+  ];
+
+  const parseStateFromLocation = (): {
+    view: ActiveScreen;
+    category: NotificationCategory | 'all';
+    slug: string | null;
+  } => {
+    if (typeof window === 'undefined') {
+      return { view: 'home', category: 'all', slug: null };
+    }
+    const path = window.location.pathname.toLowerCase().replace(/^\/+/g, '').replace(/\/+$/g, '');
+    const hash = window.location.hash.toLowerCase().replace(/^#\/?/, '');
+    const searchParams = new URLSearchParams(window.location.search);
+    const queryView = searchParams.get('view')?.toLowerCase();
+    const queryPost = searchParams.get('post') || searchParams.get('item');
+    const queryCat = searchParams.get('category')?.toLowerCase();
+
+    if (queryPost) {
+      return { view: 'detail', category: 'all', slug: queryPost };
+    }
+
+    const target = queryView || hash || path;
+
+    if (!target || target === 'home') {
+      return { view: 'home', category: 'all', slug: null };
+    }
+    if (target === 'admin' || target.startsWith('admin/')) {
+      return { view: 'admin', category: 'all', slug: null };
+    }
+    if (target === 'about' || target === 'about-us') {
+      return { view: 'about', category: 'all', slug: null };
+    }
+    if (target === 'contact' || target === 'contact-us') {
+      return { view: 'contact', category: 'all', slug: null };
+    }
+    if (target === 'disclaimer') {
+      return { view: 'disclaimer', category: 'all', slug: null };
+    }
+    if (target === 'privacy' || target === 'privacy-policy') {
+      return { view: 'privacy-policy', category: 'all', slug: null };
+    }
+    if (target === 'cookie' || target === 'cookie-policy' || target === 'cookies') {
+      return { view: 'cookie-policy', category: 'all', slug: null };
+    }
+    if (target === 'terms' || target === 'terms-conditions' || target === 'terms-of-service') {
+      return { view: 'terms', category: 'all', slug: null };
+    }
+    if (target === 'editorial' || target === 'editorial-policy') {
+      return { view: 'editorial-policy', category: 'all', slug: null };
+    }
+    if (target === 'correction' || target === 'corrections' || target === 'correction-policy') {
+      return { view: 'correction-policy', category: 'all', slug: null };
+    }
+    if (target === 'sitemap') {
+      return { view: 'sitemap', category: 'all', slug: null };
+    }
+    if (target === 'search') {
+      return { view: 'search', category: 'all', slug: null };
+    }
+
+    // Direct category routing e.g. /latest-job, /result, or /directory/latest-job
+    const strippedCategory = target.replace(/^directory\//, '');
+    if (VALID_CATEGORIES.includes(strippedCategory as NotificationCategory)) {
+      return { view: 'directory', category: strippedCategory as NotificationCategory, slug: null };
+    }
+    if (queryCat && VALID_CATEGORIES.includes(queryCat as NotificationCategory)) {
+      return { view: 'directory', category: queryCat as NotificationCategory, slug: null };
+    }
+
+    // Direct notification slug routing e.g. /my-job-notification-slug
+    const cleanSlug = target.replace(/^jobs\//, '').replace(/^notification\//, '');
+    const matchedNotif = INITIAL_NOTIFICATIONS.find(
+      (n) => n.slug.toLowerCase() === cleanSlug.toLowerCase()
+    );
+    if (matchedNotif) {
+      return { view: 'detail', category: matchedNotif.category, slug: matchedNotif.slug };
+    }
+
+    return { view: 'home', category: 'all', slug: null };
+  };
+
+  const initialParsed = parseStateFromLocation();
+  const [currentView, setCurrentViewState] = useState<ActiveScreen>(initialParsed.view);
+  const [selectedCategory, setSelectedCategory] = useState<NotificationCategory | 'all'>(initialParsed.category);
+  const [selectedSlug, setSelectedSlug] = useState<string | null>(initialParsed.slug);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [filterState, setFilterState] = useState<string>('All');
   const [filterQualification, setFilterQualification] = useState<string>('All');
+
+  // Sync browser back/forward and deep link navigation
+  useEffect(() => {
+    const handleLocationChange = () => {
+      const parsed = parseStateFromLocation();
+      setCurrentViewState(parsed.view);
+      setSelectedCategory(parsed.category);
+      setSelectedSlug(parsed.slug);
+    };
+
+    window.addEventListener('popstate', handleLocationChange);
+    window.addEventListener('hashchange', handleLocationChange);
+    return () => {
+      window.removeEventListener('popstate', handleLocationChange);
+      window.removeEventListener('hashchange', handleLocationChange);
+    };
+  }, []);
+
+  const setView = (view: ActiveScreen) => {
+    setCurrentViewState(view);
+    if (typeof window !== 'undefined') {
+      if (view === 'home') {
+        setSelectedCategory('all');
+        setSelectedSlug(null);
+        window.history.pushState(null, '', '/');
+      } else if (view === 'admin') {
+        window.history.pushState(null, '', '/admin');
+      } else if (view === 'directory') {
+        const cat = selectedCategory !== 'all' ? selectedCategory : 'latest-job';
+        window.history.pushState(null, '', `/${cat}`);
+      } else if (view === 'detail' && selectedSlug) {
+        window.history.pushState(null, '', `/${selectedSlug}`);
+      } else {
+        window.history.pushState(null, '', `/${view}`);
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   // Sync to local storage
   useEffect(() => {
@@ -171,23 +303,64 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const openNotification = (slug: string) => {
     setSelectedSlug(slug);
-    setCurrentView('detail');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setCurrentViewState('detail');
+    if (typeof window !== 'undefined') {
+      window.history.pushState(null, '', `/${slug}`);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const openCategory = (category: NotificationCategory) => {
     setSelectedCategory(category);
-    setCurrentView('directory');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setSelectedSlug(null);
+    setCurrentViewState('directory');
+    if (typeof window !== 'undefined') {
+      window.history.pushState(null, '', `/${category}`);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const goHome = () => {
-    setCurrentView('home');
+    setCurrentViewState('home');
     setSelectedCategory('all');
     setSelectedSlug(null);
     setSearchQuery('');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (typeof window !== 'undefined') {
+      if (window.location.pathname !== '/' || window.location.search || window.location.hash) {
+        window.history.pushState(null, '', '/');
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
+
+  // Automatically fetch from Supabase if configured
+  useEffect(() => {
+    if (!isSupabaseReady()) return;
+
+    const syncWithSupabase = async () => {
+      try {
+        const [remoteNotifs, remoteTicker, remoteTiles] = await Promise.all([
+          supabaseApi.notifications.list(),
+          supabaseApi.ticker.list(),
+          supabaseApi.featuredTiles.list(),
+        ]);
+
+        if (remoteNotifs && remoteNotifs.length > 0) {
+          setNotifications(remoteNotifs as NotificationItem[]);
+        }
+        if (remoteTicker && remoteTicker.length > 0) {
+          setTickerItems(remoteTicker as TickerItem[]);
+        }
+        if (remoteTiles && remoteTiles.length > 0) {
+          setFeaturedTiles(remoteTiles as FeaturedTile[]);
+        }
+      } catch (err) {
+        console.warn('Initial Supabase sync fallback:', err);
+      }
+    };
+
+    syncWithSupabase();
+  }, []);
 
   // CMS functions
   const addNotification = (item: Omit<NotificationItem, 'id' | 'views'>) => {
@@ -199,28 +372,58 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       inTrash: false,
     };
     setNotifications((prev) => [newItem, ...prev]);
+
+    if (isSupabaseReady()) {
+      supabaseApi.notifications.create(newItem).catch((err) => {
+        console.warn('Failed to insert into Supabase:', err);
+      });
+    }
   };
 
   const updateNotification = (id: string, updates: Partial<NotificationItem>) => {
     setNotifications((prev) =>
       prev.map((item) => (item.id === id ? { ...item, ...updates } : item))
     );
+
+    if (isSupabaseReady()) {
+      supabaseApi.notifications.update(id, updates).catch((err) => {
+        console.warn('Failed to update in Supabase:', err);
+      });
+    }
   };
 
   const trashNotification = (id: string) => {
     setNotifications((prev) =>
       prev.map((item) => (item.id === id ? { ...item, inTrash: true } : item))
     );
+
+    if (isSupabaseReady()) {
+      supabaseApi.notifications.update(id, { inTrash: true }).catch((err) => {
+        console.warn('Failed to trash in Supabase:', err);
+      });
+    }
   };
 
   const restoreNotification = (id: string) => {
     setNotifications((prev) =>
       prev.map((item) => (item.id === id ? { ...item, inTrash: false } : item))
     );
+
+    if (isSupabaseReady()) {
+      supabaseApi.notifications.update(id, { inTrash: false }).catch((err) => {
+        console.warn('Failed to restore in Supabase:', err);
+      });
+    }
   };
 
   const permanentDeleteNotification = (id: string) => {
     setNotifications((prev) => prev.filter((item) => item.id !== id));
+
+    if (isSupabaseReady()) {
+      supabaseApi.notifications.delete(id).catch((err) => {
+        console.warn('Failed to delete in Supabase:', err);
+      });
+    }
   };
 
   // Ticker operations
@@ -233,16 +436,37 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       active: true,
     };
     setTickerItems((prev) => [newItem, ...prev]);
+
+    if (isSupabaseReady()) {
+      supabaseApi.ticker.create(newItem).catch((err) => {
+        console.warn('Failed to insert ticker into Supabase:', err);
+      });
+    }
   };
 
   const toggleTickerItem = (id: string) => {
+    const item = tickerItems.find((t) => t.id === id);
+    const nextActive = item ? !item.active : true;
+
     setTickerItems((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, active: !t.active } : t))
+      prev.map((t) => (t.id === id ? { ...t, active: nextActive } : t))
     );
+
+    if (isSupabaseReady()) {
+      supabaseApi.ticker.update(id, { active: nextActive }).catch((err) => {
+        console.warn('Failed to toggle ticker in Supabase:', err);
+      });
+    }
   };
 
   const deleteTickerItem = (id: string) => {
     setTickerItems((prev) => prev.filter((t) => t.id !== id));
+
+    if (isSupabaseReady()) {
+      supabaseApi.ticker.delete(id).catch((err) => {
+        console.warn('Failed to delete ticker from Supabase:', err);
+      });
+    }
   };
 
   // Featured tile operations
@@ -250,6 +474,12 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setFeaturedTiles((prev) =>
       prev.map((tile) => (tile.id === id ? { ...tile, ...updates } : tile))
     );
+
+    if (isSupabaseReady()) {
+      supabaseApi.featuredTiles.update(id, updates).catch((err) => {
+        console.warn('Failed to update featured tile in Supabase:', err);
+      });
+    }
   };
 
   const resetToDefaults = () => {
@@ -274,7 +504,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         filterState,
         filterQualification,
         selectedItem,
-        setView: setCurrentView,
+        setView,
         openNotification,
         openCategory,
         goHome,

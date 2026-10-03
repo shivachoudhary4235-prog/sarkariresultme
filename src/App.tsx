@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import { PortalProvider, usePortal } from './context/PortalContext';
 import { Header } from './components/Header';
 import { Ticker } from './components/Ticker';
@@ -16,13 +16,35 @@ import { EditorialGuide } from './components/EditorialGuide';
 import { FAQSection } from './components/FAQSection';
 import { LegalNotice } from './components/LegalNotice';
 import { Footer } from './components/Footer';
-import { DetailView } from './components/DetailView';
-import { DirectoryView } from './components/DirectoryView';
-import { SearchView } from './components/SearchView';
-import { AdminCMS } from './components/AdminCMS';
+import { WhatsAppPopup } from './components/WhatsAppPopup';
+
+// Code-split heavy views to keep initial mobile bundle ultra-light
+const DetailView = React.lazy(() => import('./components/DetailView').then(m => ({ default: m.DetailView })));
+const DirectoryView = React.lazy(() => import('./components/DirectoryView').then(m => ({ default: m.DirectoryView })));
+const SearchView = React.lazy(() => import('./components/SearchView').then(m => ({ default: m.SearchView })));
+const AdminCMS = React.lazy(() => import('./components/AdminCMS').then(m => ({ default: m.AdminCMS })));
+const CompliancePage = React.lazy(() => import('./components/CompliancePage').then(m => ({ default: m.CompliancePage })));
+
+const ViewLoader: React.FC = () => (
+  <div className="w-full py-16 flex flex-col items-center justify-center gap-2 text-gray-500">
+    <div className="w-8 h-8 border-3 border-[#ab1818] border-t-transparent rounded-full animate-spin" />
+    <span className="text-xs font-bold uppercase tracking-wider text-[#850008]">Loading...</span>
+  </div>
+);
 
 const MainContent: React.FC = () => {
   const { currentView, fontScale } = usePortal();
+
+  // Render clean full-width Admin Dashboard without public site header and footer
+  if (currentView === 'admin') {
+    return (
+      <div className="min-h-screen bg-[#f8f9fa] flex flex-col font-sans w-full">
+        <Suspense fallback={<ViewLoader />}>
+          <AdminCMS />
+        </Suspense>
+      </div>
+    );
+  }
 
   return (
     <div className={`min-h-screen bg-white flex flex-col font-sans font-scale-${fontScale}`}>
@@ -36,23 +58,41 @@ const MainContent: React.FC = () => {
             <ActionGrid />
             <StatsBar />
             <DirectoryMatrix />
-            <SocialBanner />
-            <EditorialGuide />
-            <FAQSection />
-            <LegalNotice />
+            <div className="content-auto">
+              <SocialBanner />
+            </div>
+            <div className="content-auto">
+              <EditorialGuide />
+            </div>
+            <div className="content-auto">
+              <FAQSection />
+            </div>
+            <div className="content-auto">
+              <LegalNotice />
+            </div>
           </div>
         )}
 
-        {currentView === 'directory' && <DirectoryView />}
-
-        {currentView === 'detail' && <DetailView />}
-
-        {currentView === 'search' && <SearchView />}
-
-        {currentView === 'admin' && <AdminCMS />}
+        <Suspense fallback={<ViewLoader />}>
+          {currentView === 'directory' && <DirectoryView />}
+          {currentView === 'detail' && <DetailView />}
+          {currentView === 'search' && <SearchView />}
+          {(
+            currentView === 'about' ||
+            currentView === 'contact' ||
+            currentView === 'disclaimer' ||
+            currentView === 'privacy-policy' ||
+            currentView === 'cookie-policy' ||
+            currentView === 'terms' ||
+            currentView === 'editorial-policy' ||
+            currentView === 'correction-policy' ||
+            currentView === 'sitemap'
+          ) && <CompliancePage screen={currentView} />}
+        </Suspense>
       </main>
 
       <Footer />
+      <WhatsAppPopup />
     </div>
   );
 };

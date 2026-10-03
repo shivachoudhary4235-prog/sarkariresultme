@@ -18,6 +18,8 @@ import {
   Tooltip as RechartsTooltip,
   Legend as RechartsLegend,
 } from 'recharts';
+import { openPdfInBrowser, downloadPdfFile, createPdfBlob } from '../utils/pdfUtils';
+import { CompetitorRadar } from './CompetitorRadar';
 
 interface NativeDatePickerProps {
   label: string;
@@ -558,8 +560,35 @@ export const AdminCMS: React.FC = () => {
     goHome,
   } = usePortal();
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'publish' | 'content' | 'ticker' | 'featured' | 'settings'>('dashboard');
+  type AdminTab =
+    | 'dashboard'
+    | 'publish'
+    | 'content'
+    | 'jobs'
+    | 'results'
+    | 'admit-cards'
+    | 'answer-keys'
+    | 'syllabus'
+    | 'admissions'
+    | 'certificates'
+    | 'outsourcing'
+    | 'important'
+    | 'ticker'
+    | 'featured'
+    | 'radar'
+    | 'settings';
+
+  const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
   const [successMsg, setSuccessMsg] = useState('');
+  const [categorySearch, setCategorySearch] = useState('');
+
+  const handleImportToPublish = (title: string, category: NotificationCategory, org: string) => {
+    setPubTitle(title);
+    setPubCategory(category);
+    setPubOrg(org);
+    setActiveTab('publish');
+    triggerSuccess(`Pre-filled "${title}" into Quick Publish form. Check details and click Publish!`);
+  };
 
   // Quick Publish Form State
   const [pubTitle, setPubTitle] = useState('');
@@ -645,8 +674,60 @@ export const AdminCMS: React.FC = () => {
   const [pubApplyUrlServer2, setPubApplyUrlServer2] = useState('https://upsssc.gov.in/');
   const [pubNoticeUrl, setPubNoticeUrl] = useState('https://upsssc.gov.in/');
   const [pubOfficialUrl, setPubOfficialUrl] = useState('https://upsssc.gov.in/');
-  const [pubTelegramUrl, setPubTelegramUrl] = useState('https://t.me');
-  const [pubWhatsappUrl, setPubWhatsappUrl] = useState('https://whatsapp.com');
+  const [pubTelegramUrl, setPubTelegramUrl] = useState('https://t.me/getsarkariresultme');
+  const [pubWhatsappUrl, setPubWhatsappUrl] = useState('https://whatsapp.com/channel/0029VbDTiYy1dAw2mrPX7a2m');
+
+  // PDF Upload / Dropzone State
+  const [pdfFileName, setPdfFileName] = useState('');
+  const [pdfFileSize, setPdfFileSize] = useState('');
+  const [pdfUploadMode, setPdfUploadMode] = useState<'upload' | 'url'>('upload');
+  const [isDraggingPdf, setIsDraggingPdf] = useState(false);
+  const [editPdfFileName, setEditPdfFileName] = useState('');
+  const [editPdfUploadMode, setEditPdfUploadMode] = useState<'upload' | 'url'>('upload');
+
+  const handlePdfUpload = (file: File, isEdit = false) => {
+    if (!file) return;
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      alert('Please upload a valid .pdf file.');
+      return;
+    }
+    const sizeStr = file.size > 1024 * 1024
+      ? (file.size / (1024 * 1024)).toFixed(2) + ' MB'
+      : (file.size / 1024).toFixed(1) + ' KB';
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      if (isEdit && editingItem) {
+        setEditPdfFileName(file.name);
+        setEditingItem((prev) => prev ? { ...prev, notificationUrl: dataUrl } : null);
+      } else {
+        setPdfFileName(file.name);
+        setPdfFileSize(sizeStr);
+        setPubNoticeUrl(dataUrl);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // PDF Preview In-App Modal State
+  const [pdfPreviewModal, setPdfPreviewModal] = useState<{ isOpen: boolean; url: string; fileName: string } | null>(null);
+
+  const handleOpenPdfPreview = (url: string, fileName = 'Official_Notice.pdf') => {
+    if (!url) {
+      alert('No PDF file attached to preview.');
+      return;
+    }
+    if (url.startsWith('data:')) {
+      const blob = createPdfBlob(url);
+      if (blob) {
+        const blobUrl = URL.createObjectURL(blob);
+        setPdfPreviewModal({ isOpen: true, url: blobUrl, fileName });
+        return;
+      }
+    }
+    setPdfPreviewModal({ isOpen: true, url, fileName });
+  };
 
   // Custom Extra Links
   const [pubCustomLinks, setPubCustomLinks] = useState<CustomLinkItem[]>([]);
@@ -826,8 +907,17 @@ export const AdminCMS: React.FC = () => {
   const activeCount = notifications.filter((n) => !n.inTrash).length;
   const trashCount = notifications.filter((n) => n.inTrash).length;
   const jobsCount = notifications.filter((n) => n.category === 'latest-job' && !n.inTrash).length;
-  const admitsCount = notifications.filter((n) => n.category === 'admit-card' && !n.inTrash).length;
   const resultsCount = notifications.filter((n) => n.category === 'result' && !n.inTrash).length;
+  const admitsCount = notifications.filter((n) => n.category === 'admit-card' && !n.inTrash).length;
+  const answerKeysCount = notifications.filter((n) => n.category === 'answer-key' && !n.inTrash).length;
+  const syllabusCount = notifications.filter((n) => n.category === 'syllabus' && !n.inTrash).length;
+  const admissionsCount = notifications.filter((n) => n.category === 'admission' && !n.inTrash).length;
+  const certificatesCount = notifications.filter((n) => n.category === 'certificate' && !n.inTrash).length;
+  const outsourcingCount = notifications.filter((n) => n.category === 'outsourcing' && !n.inTrash).length;
+  const importantCount = notifications.filter((n) => n.category === 'important' && !n.inTrash).length;
+  const flashTilesCount = featuredTiles.length;
+  const tickerCount = tickerItems.length;
+  const totalCount = activeCount;
 
   // Filter jobs for live vs expired lifecycle analysis
   const jobItems = notifications.filter(
@@ -908,36 +998,213 @@ export const AdminCMS: React.FC = () => {
     return true;
   });
 
-  return (
-    <div className="w-full bg-white border border-[#ab1818] p-3 md:p-6 mb-6 shadow-sm">
-      {/* Top Banner */}
-      <div className="bg-[#001a40] text-white p-3.5 flex flex-wrap items-center justify-between gap-3 mb-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="bg-[#ab1818] text-white text-[10px] font-bold px-1.5 py-0.5 uppercase tracking-wider">
-              PORTAL CMS
-            </span>
-            <h1 className="text-base sm:text-lg font-bold uppercase tracking-tight">
-              Sarkari Result – Publishing &amp; Content Management System
-            </h1>
+  const renderCategoryView = (
+    cat: NotificationCategory,
+    title: string,
+    hindiTitle: string,
+    icon: string
+  ) => {
+    const catItems = notifications.filter((n) => n.category === cat && !n.inTrash);
+    const filtered = catItems.filter((item) => {
+      if (!categorySearch.trim()) return true;
+      const q = categorySearch.toLowerCase();
+      return item.title.toLowerCase().includes(q) || item.organization.toLowerCase().includes(q);
+    });
+
+    return (
+      <div className="space-y-4">
+        {/* Category Header */}
+        <div className="bg-[#001a40] text-white p-3.5 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="text-xl">{icon}</span>
+            <div>
+              <h2 className="text-sm sm:text-base font-black uppercase tracking-tight">
+                {title} <span className="text-amber-300 font-normal">({hindiTitle})</span>
+              </h2>
+              <p className="text-[11px] text-gray-300">
+                Total {catItems.length} active published entries in this section
+              </p>
+            </div>
           </div>
-          <p className="text-xs text-gray-300 mt-0.5">
-            Create, update, calendar-schedule notifications, manage direct server links, breaking ticker alerts, and recruitment articles.
-          </p>
+
+          <button
+            onClick={() => {
+              setPubCategory(cat);
+              setActiveTab('publish');
+            }}
+            className="bg-[#850008] hover:bg-[#a0000a] text-white text-xs font-bold px-3 py-1.5 uppercase rounded-xs flex items-center gap-1 cursor-pointer transition-colors shadow-xs"
+          >
+            <span>+ Add New {title}</span>
+          </button>
         </div>
 
-        <button
-          onClick={goHome}
-          className="bg-[#ab1818] hover:bg-[#8a0c0c] text-white text-xs font-bold px-3 py-1.5 uppercase flex items-center gap-1.5 cursor-pointer transition-colors"
-        >
-          <span className="material-symbols-outlined text-[16px]">visibility</span>
-          <span>View Public Site</span>
-        </button>
+        {/* Search & Actions Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <input
+              type="text"
+              value={categorySearch}
+              onChange={(e) => setCategorySearch(e.target.value)}
+              placeholder={`Search ${title.toLowerCase()} or board...`}
+              className="border border-gray-300 p-1.5 text-xs w-64 focus:outline-none bg-white font-medium"
+            />
+            {categorySearch && (
+              <button
+                onClick={() => setCategorySearch('')}
+                className="text-xs text-gray-500 hover:text-black cursor-pointer font-bold"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          <span className="text-xs text-gray-500 font-medium">
+            Showing {filtered.length} of {catItems.length} records
+          </span>
+        </div>
+
+        {/* Category Table */}
+        <div className="overflow-x-auto border border-gray-300 shadow-2xs">
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="bg-[#001a40] text-white font-bold uppercase text-[11px]">
+                <th className="p-2 border-r border-white/20 whitespace-nowrap">Date</th>
+                <th className="p-2 border-r border-white/20">Title</th>
+                <th className="p-2 border-r border-white/20 whitespace-nowrap">Organization</th>
+                <th className="p-2 border-r border-white/20 text-center whitespace-nowrap">Last Date</th>
+                <th className="p-2 text-center whitespace-nowrap">Live Direct Links</th>
+                <th className="p-2 text-center whitespace-nowrap">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 bg-white">
+              {filtered.map((item) => (
+                <tr key={item.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="p-2 font-bold text-gray-600 whitespace-nowrap border-r border-gray-200">
+                    {item.postDate || 'N/A'}
+                  </td>
+                  <td className="p-2 font-bold text-gray-900 border-r border-gray-200 max-w-sm">
+                    <div className="line-clamp-2">{item.title}</div>
+                    {item.statusBadge && (
+                      <span className="mt-1 inline-block bg-[#850008] text-white text-[9px] font-black px-1.5 py-0.5 uppercase rounded-xs">
+                        {item.statusBadge}
+                      </span>
+                    )}
+                  </td>
+                  <td className="p-2 text-gray-600 border-r border-gray-200 whitespace-nowrap">
+                    {item.organization}
+                  </td>
+                  <td className="p-2 font-bold text-[#850008] border-r border-gray-200 whitespace-nowrap text-center">
+                    {item.lastDate || 'N/A'}
+                  </td>
+                  <td className="p-2 text-center border-r border-gray-200 whitespace-nowrap space-x-1.5">
+                    {item.applyUrl ? (
+                      <a
+                        href={item.applyUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-0.5 px-2 py-0.5 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-300 rounded-xs text-[10px] font-bold"
+                      >
+                        <span>Portal</span>
+                        <span>↗</span>
+                      </a>
+                    ) : (
+                      <span className="text-gray-400 text-[10px]">—</span>
+                    )}
+                    {item.notificationUrl ? (
+                      <a
+                        href={item.notificationUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-0.5 px-2 py-0.5 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300 rounded-xs text-[10px] font-bold"
+                      >
+                        <span>Download</span>
+                        <span>📥</span>
+                      </a>
+                    ) : (
+                      <span className="text-gray-400 text-[10px]">—</span>
+                    )}
+                  </td>
+                  <td className="p-2 text-center whitespace-nowrap space-x-2">
+                    <button
+                      onClick={() => {
+                        setEditingItem(item);
+                        setEditPdfFileName(
+                          item.notificationUrl?.startsWith('data:')
+                            ? `${item.slug}-notification.pdf`
+                            : item.notificationUrl?.toLowerCase().endsWith('.pdf')
+                            ? item.notificationUrl.split('/').pop() || 'official_notice.pdf'
+                            : ''
+                        );
+                        setEditPdfUploadMode(item.notificationUrl?.startsWith('data:') ? 'upload' : 'url');
+                      }}
+                      className="text-[#000dff] hover:underline font-bold cursor-pointer"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => {
+                        trashNotification(item.id);
+                        triggerSuccess(`Moved "${item.title}" to trash.`);
+                      }}
+                      className="text-red-600 hover:underline font-bold cursor-pointer"
+                    >
+                      Trash
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center text-gray-500 font-medium">
+                    No {title.toLowerCase()} found matching your criteria.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="w-full min-h-screen bg-[#f8f9fa] flex flex-col font-sans">
+      {/* Header Bar matching screenshot */}
+      <div className="bg-[#0a1128] text-white px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3 border-b border-gray-800 shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-[#850008] border border-white/20 flex items-center justify-center font-black text-white text-xs tracking-wider shadow-sm">
+            SRM
+          </div>
+          <div>
+            <h1 className="text-sm sm:text-base font-black uppercase tracking-tight text-white leading-tight">
+              SARKARI RESULT ME
+            </h1>
+            <p className="text-[10px] sm:text-[11px] text-gray-400 font-semibold tracking-wider uppercase">
+              SARKARI RESULT ME — ADMIN PORTAL • COMPLETE PORTAL CONTROL
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={goHome}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white hover:text-sky-300 transition-colors cursor-pointer"
+          >
+            <span className="text-sky-400 text-sm">🌐</span>
+            <span>View Public Site</span>
+          </button>
+
+          <div className="flex items-center gap-2 bg-[#000033]/60 px-2.5 py-1 rounded-full border border-white/10">
+            <span className="w-6 h-6 rounded-full bg-[#850008] text-white flex items-center justify-center text-xs">
+              👤
+            </span>
+            <span className="text-xs font-bold text-white pr-1">Admin</span>
+          </div>
+        </div>
       </div>
 
       {/* Success alert message */}
       {successMsg && (
-        <div className="bg-green-100 border border-green-500 text-green-900 px-3.5 py-2 text-xs font-bold mb-4 flex items-center justify-between animate-in fade-in">
+        <div className="bg-green-100 border-b border-green-500 text-green-900 px-4 py-2 text-xs font-bold flex items-center justify-between animate-in fade-in shrink-0">
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-green-700 text-[18px]">check_circle</span>
             <span>{successMsg}</span>
@@ -948,554 +1215,406 @@ export const AdminCMS: React.FC = () => {
         </div>
       )}
 
-      {/* Tab Navigation */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-4 border-b border-gray-300 text-xs font-bold">
-        <button
-          onClick={() => setActiveTab('dashboard')}
-          className={`px-3 py-1.5 uppercase transition-colors cursor-pointer border ${
-            activeTab === 'dashboard'
-              ? 'bg-[#ab1818] text-white border-[#ab1818]'
-              : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
-          }`}
-        >
-          Dashboard
-        </button>
-        <button
-          onClick={() => setActiveTab('publish')}
-          className={`px-3 py-1.5 uppercase transition-colors cursor-pointer border ${
-            activeTab === 'publish'
-              ? 'bg-[#ab1818] text-white border-[#ab1818]'
-              : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
-          }`}
-        >
-          + Quick Publish
-        </button>
-        <button
-          onClick={() => setActiveTab('content')}
-          className={`px-3 py-1.5 uppercase transition-colors cursor-pointer border ${
-            activeTab === 'content'
-              ? 'bg-[#ab1818] text-white border-[#ab1818]'
-              : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
-          }`}
-        >
-          Content Manager ({activeCount})
-        </button>
-        <button
-          onClick={() => setActiveTab('ticker')}
-          className={`px-3 py-1.5 uppercase transition-colors cursor-pointer border ${
-            activeTab === 'ticker'
-              ? 'bg-[#ab1818] text-white border-[#ab1818]'
-              : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
-          }`}
-        >
-          Breaking Ticker ({tickerItems.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('featured')}
-          className={`px-3 py-1.5 uppercase transition-colors cursor-pointer border ${
-            activeTab === 'featured'
-              ? 'bg-[#ab1818] text-white border-[#ab1818]'
-              : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
-          }`}
-        >
-          Action Grid Tiles ({featuredTiles.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('settings')}
-          className={`px-3 py-1.5 uppercase transition-colors cursor-pointer border ${
-            activeTab === 'settings'
-              ? 'bg-[#ab1818] text-white border-[#ab1818]'
-              : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
-          }`}
-        >
-          System &amp; Reset
-        </button>
-      </div>
+      {/* Main 2-Column Layout */}
+      <div className="flex flex-col md:flex-row flex-1 min-h-[calc(100vh-60px)]">
+        {/* Left Sidebar (240px / w-60) */}
+        <aside className="w-full md:w-60 bg-white border-r border-gray-200 p-3 sm:p-4 flex flex-col justify-between shrink-0 shadow-2xs">
+          <div>
+            <div className="text-[11px] font-bold text-gray-400 tracking-wider uppercase px-2 py-1.5 mb-1">
+              PORTAL CONTROL CENTER
+            </div>
+            <nav className="space-y-0.5 text-xs">
+              {[
+                { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+                { id: 'publish', label: 'Quick Publish', icon: '📝' },
+                { id: 'jobs', label: 'Manage Jobs', icon: '💼' },
+                { id: 'results', label: 'Manage Results', icon: '🏆' },
+                { id: 'admit-cards', label: 'Admit Cards', icon: '🎫' },
+                { id: 'answer-keys', label: 'Answer Keys', icon: '🔑' },
+                { id: 'syllabus', label: 'Syllabus', icon: '📚' },
+                { id: 'admissions', label: 'Admissions', icon: '🏫' },
+                { id: 'certificates', label: 'Certificates', icon: '📜' },
+                { id: 'outsourcing', label: 'Outsourcing Jobs', icon: '🏢' },
+                { id: 'important', label: 'Important Links', icon: '📌' },
+                { id: 'featured', label: 'Flash Tiles', icon: '⚡' },
+                { id: 'ticker', label: 'Moving Ticker', icon: '📡' },
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id as AdminTab)}
+                  className={`w-full text-left px-2.5 py-1.5 rounded-sm font-semibold flex items-center gap-2 transition-colors cursor-pointer ${
+                    activeTab === item.id
+                      ? 'bg-blue-50 text-[#000066] font-bold border-l-3 border-[#850008]'
+                      : 'text-gray-700 hover:bg-gray-100 hover:text-black'
+                  }`}
+                >
+                  <span className="text-sm">{item.icon}</span>
+                  <span>{item.label}</span>
+                </button>
+              ))}
+              <button
+                onClick={goHome}
+                className="w-full text-left px-2.5 py-1.5 rounded-sm font-semibold flex items-center gap-2 text-gray-700 hover:bg-gray-100 hover:text-black transition-colors cursor-pointer"
+              >
+                <span className="text-sm">🌐</span>
+                <span>Public Site</span>
+              </button>
+            </nav>
+          </div>
 
-      {/* TAB 1: DASHBOARD (LIVE VS EXPIRED JOBS RECHARTS DOUGHNUT CHART & LIFECYCLE ANALYTICS) */}
+          {/* Instant Sync alert box at bottom of sidebar */}
+          <div className="mt-6 p-2.5 bg-[#fdf6f5] border border-[#f5c6cb] rounded-xs text-center">
+            <div className="flex items-center justify-center gap-1 text-[#850008] font-bold text-xs">
+              <span>⚡</span>
+              <span>Instant Sync</span>
+            </div>
+            <p className="text-[10px] text-gray-600 mt-1 leading-tight font-medium">
+              Every edit, add, or delete made in this admin panel updates the public homepage immediately!
+            </p>
+          </div>
+        </aside>
+
+        {/* Right Main Body */}
+        <div className="flex-1 p-3 sm:p-5 bg-white min-w-0">
+
+      {/* TAB 1: DASHBOARD (SCREENSHOT-MATCHED COMMAND CENTER) */}
       {activeTab === 'dashboard' && (
-        <div className="space-y-5">
-          {/* Top KPI Header Row */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 text-center">
-            {/* KPI 1: Live Jobs */}
-            <div className="bg-white p-3.5 border-2 border-emerald-500 shadow-xs relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-2 h-full bg-emerald-500" />
-              <div className="flex items-center justify-center gap-1.5 mb-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-2xl sm:text-3xl font-black text-emerald-700 leading-none font-serif">
-                  {liveJobsCount}
-                </span>
-              </div>
-              <span className="text-xs font-black text-gray-800 uppercase tracking-tight block">
-                Live Jobs (Open)
-              </span>
-              <span className="text-[10px] text-emerald-700 font-bold mt-0.5 block">
-                {livePercentage}% of Total Jobs
-              </span>
+        <div className="space-y-4">
+          {/* Top Command Center Card */}
+          <div className="bg-white border border-gray-200 rounded-sm p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-2xs">
+            <div>
+              <h2 className="text-base sm:text-lg font-black text-[#001a40] tracking-tight uppercase">
+                PORTAL COMMAND CENTER
+              </h2>
+              <p className="text-xs text-gray-500 mt-0.5 font-medium">
+                Complete administration for <strong className="text-gray-700">Sarkari Result Me</strong> (sarkariresultme.com). Direct portal &amp; download link management active.
+              </p>
             </div>
-
-            {/* KPI 2: Expired Jobs */}
-            <div className="bg-white p-3.5 border-2 border-red-500 shadow-xs relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-2 h-full bg-red-500" />
-              <div className="flex items-center justify-center gap-1.5 mb-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
-                <span className="text-2xl sm:text-3xl font-black text-red-700 leading-none font-serif">
-                  {expiredJobsCount}
-                </span>
-              </div>
-              <span className="text-xs font-black text-gray-800 uppercase tracking-tight block">
-                Expired Jobs (Closed)
-              </span>
-              <span className="text-[10px] text-red-700 font-bold mt-0.5 block">
-                {expiredPercentage}% Deadline Passed
-              </span>
-            </div>
-
-            {/* KPI 3: Closing Soon */}
-            <div className="bg-white p-3.5 border border-amber-400 bg-amber-50/50 shadow-xs relative">
-              <span className="text-2xl sm:text-3xl font-black text-amber-700 block leading-none mb-1 font-serif">
-                {expiringSoonList.length}
-              </span>
-              <span className="text-xs font-black text-gray-800 uppercase tracking-tight block">
-                Closing Soon (≤7 Days)
-              </span>
-              <span className="text-[10px] text-amber-700 font-bold mt-0.5 block">
-                Urgent Attention
-              </span>
-            </div>
-
-            {/* KPI 4: Total Jobs Tracked */}
-            <div className="bg-[#f4f6f9] p-3.5 border border-gray-300 shadow-xs">
-              <span className="text-2xl sm:text-3xl font-black text-[#000066] block leading-none mb-1 font-serif">
-                {totalJobsCount}
-              </span>
-              <span className="text-xs font-black text-gray-800 uppercase tracking-tight block">
-                Total Jobs Tracked
-              </span>
-              <span className="text-[10px] text-gray-600 font-semibold mt-0.5 block">
-                Latest &amp; Outsourcing
-              </span>
-            </div>
-
-            {/* KPI 5: Total Live Database Alerts */}
-            <div className="bg-[#fff0ee] p-3.5 border border-[#f9dcd9] shadow-xs col-span-2 sm:col-span-1">
-              <span className="text-2xl sm:text-3xl font-black text-[#850008] block leading-none mb-1 font-serif">
-                {activeCount}
-              </span>
-              <span className="text-xs font-black text-gray-800 uppercase tracking-tight block">
-                All Live Alerts
-              </span>
-              <span className="text-[10px] text-[#850008] font-bold mt-0.5 block">
-                Across 9 Categories
-              </span>
+            <div className="flex items-center gap-2 self-stretch md:self-auto shrink-0">
+              <button
+                type="button"
+                onClick={goHome}
+                className="px-3.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold rounded-xs flex items-center gap-1.5 border border-gray-300 transition-colors cursor-pointer"
+              >
+                <span className="text-sky-600">🌐</span>
+                <span>Open Public Site</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('publish')}
+                className="px-3.5 py-1.5 bg-[#850008] hover:bg-[#a0000a] text-white text-xs font-bold rounded-xs flex items-center gap-1 transition-colors shadow-2xs cursor-pointer"
+              >
+                <span>+ Quick Publish</span>
+              </button>
             </div>
           </div>
 
-          {/* MAIN VISUALIZATION: RECHARTS DOUGHNUT CHART CARD */}
-          <div className="bg-white border-2 border-gray-300 p-4 sm:p-5 shadow-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 mb-4 border-b border-gray-200 gap-2">
-              <div>
+          {/* 12 Stat Cards (6 x 2 Grid matching screenshot) */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-2.5">
+            {/* 1. LATEST JOBS */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('jobs')}
+              className="bg-[#1e7e34] hover:brightness-105 text-white p-3 rounded-xs text-center flex flex-col items-center justify-center cursor-pointer transition-all shadow-xs"
+            >
+              <span className="text-2xl sm:text-3xl font-black leading-none mb-0.5">{jobsCount}</span>
+              <span className="text-[10px] font-black uppercase tracking-wider">LATEST JOBS</span>
+            </button>
+
+            {/* 2. EXAM RESULTS */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('results')}
+              className="bg-[#0056b3] hover:brightness-105 text-white p-3 rounded-xs text-center flex flex-col items-center justify-center cursor-pointer transition-all shadow-xs"
+            >
+              <span className="text-2xl sm:text-3xl font-black leading-none mb-0.5">{resultsCount}</span>
+              <span className="text-[10px] font-black uppercase tracking-wider">EXAM RESULTS</span>
+            </button>
+
+            {/* 3. ADMIT CARDS */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('admit-cards')}
+              className="bg-[#b02a37] hover:brightness-105 text-white p-3 rounded-xs text-center flex flex-col items-center justify-center cursor-pointer transition-all shadow-xs"
+            >
+              <span className="text-2xl sm:text-3xl font-black leading-none mb-0.5">{admitsCount}</span>
+              <span className="text-[10px] font-black uppercase tracking-wider">ADMIT CARDS</span>
+            </button>
+
+            {/* 4. ANSWER KEYS */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('answer-keys')}
+              className="bg-[#3d5a80] hover:brightness-105 text-white p-3 rounded-xs text-center flex flex-col items-center justify-center cursor-pointer transition-all shadow-xs"
+            >
+              <span className="text-2xl sm:text-3xl font-black leading-none mb-0.5">{answerKeysCount}</span>
+              <span className="text-[10px] font-black uppercase tracking-wider">ANSWER KEYS</span>
+            </button>
+
+            {/* 5. SYLLABUS */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('syllabus')}
+              className="bg-[#0d6efd] hover:brightness-105 text-white p-3 rounded-xs text-center flex flex-col items-center justify-center cursor-pointer transition-all shadow-xs"
+            >
+              <span className="text-2xl sm:text-3xl font-black leading-none mb-0.5">{syllabusCount}</span>
+              <span className="text-[10px] font-black uppercase tracking-wider">SYLLABUS</span>
+            </button>
+
+            {/* 6. ADMISSIONS */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('admissions')}
+              className="bg-[#6f42c1] hover:brightness-105 text-white p-3 rounded-xs text-center flex flex-col items-center justify-center cursor-pointer transition-all shadow-xs"
+            >
+              <span className="text-2xl sm:text-3xl font-black leading-none mb-0.5">{admissionsCount}</span>
+              <span className="text-[10px] font-black uppercase tracking-wider">ADMISSIONS</span>
+            </button>
+
+            {/* 7. CERTIFICATES */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('certificates')}
+              className="bg-[#b07d62] hover:brightness-105 text-white p-3 rounded-xs text-center flex flex-col items-center justify-center cursor-pointer transition-all shadow-xs"
+            >
+              <span className="text-2xl sm:text-3xl font-black leading-none mb-0.5">{certificatesCount}</span>
+              <span className="text-[10px] font-black uppercase tracking-wider">CERTIFICATES</span>
+            </button>
+
+            {/* 8. OUTSOURCING */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('outsourcing')}
+              className="bg-[#d97706] hover:brightness-105 text-white p-3 rounded-xs text-center flex flex-col items-center justify-center cursor-pointer transition-all shadow-xs"
+            >
+              <span className="text-2xl sm:text-3xl font-black leading-none mb-0.5">{outsourcingCount}</span>
+              <span className="text-[10px] font-black uppercase tracking-wider">OUTSOURCING</span>
+            </button>
+
+            {/* 9. IMPORTANT */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('important')}
+              className="bg-[#dc3545] hover:brightness-105 text-white p-3 rounded-xs text-center flex flex-col items-center justify-center cursor-pointer transition-all shadow-xs"
+            >
+              <span className="text-2xl sm:text-3xl font-black leading-none mb-0.5">{importantCount}</span>
+              <span className="text-[10px] font-black uppercase tracking-wider">IMPORTANT</span>
+            </button>
+
+            {/* 10. FLASH TILES */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('featured')}
+              className="bg-[#d63384] hover:brightness-105 text-white p-3 rounded-xs text-center flex flex-col items-center justify-center cursor-pointer transition-all shadow-xs"
+            >
+              <span className="text-2xl sm:text-3xl font-black leading-none mb-0.5">{flashTilesCount}</span>
+              <span className="text-[10px] font-black uppercase tracking-wider">FLASH TILES</span>
+            </button>
+
+            {/* 11. TICKER HEADLINES */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('ticker')}
+              className="bg-[#6610f2] hover:brightness-105 text-white p-3 rounded-xs text-center flex flex-col items-center justify-center cursor-pointer transition-all shadow-xs"
+            >
+              <span className="text-2xl sm:text-3xl font-black leading-none mb-0.5">{tickerCount}</span>
+              <span className="text-[10px] font-black uppercase tracking-wider">TICKER HEADLINES</span>
+            </button>
+
+            {/* 12. TOTAL CONTENT */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('content')}
+              className="bg-[#0a1128] hover:brightness-110 text-white p-3 rounded-xs text-center flex flex-col items-center justify-center cursor-pointer transition-all shadow-xs"
+            >
+              <div className="flex items-center gap-1">
+                <span className="text-emerald-400 text-sm font-bold">✓</span>
+                <span className="text-2xl sm:text-3xl font-black leading-none mb-0.5">{totalCount}</span>
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-wider">TOTAL CONTENT</span>
+            </button>
+          </div>
+
+          {/* Two-Column Split: Recently Updated Entries & Quick Direct Access */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            {/* Left Column (7 cols on lg, approx 58%) */}
+            <div className="lg:col-span-7 border border-gray-300 rounded-xs overflow-hidden shadow-2xs">
+              {/* Burgundy Header */}
+              <div className="bg-[#850008] text-white px-3.5 py-2 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[#850008] text-[22px]">donut_large</span>
-                  <h2 className="text-base sm:text-lg font-black text-[#850008] uppercase tracking-tight font-serif">
-                    Live Jobs vs. Expired Jobs Lifecycle Breakdown
-                  </h2>
+                  <span className="text-xs">📰</span>
+                  <span className="text-xs font-black uppercase tracking-wider">RECENTLY UPDATED ENTRIES</span>
                 </div>
-                <p className="text-xs text-gray-600 mt-0.5">
-                  Real-time visualization comparing active recruitment windows versus expired deadlines based on candidate last application dates.
-                </p>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('publish')}
+                  className="text-[11px] font-bold uppercase hover:underline cursor-pointer tracking-wider"
+                >
+                  + ADD NEW
+                </button>
               </div>
 
-              <div className="flex items-center gap-1.5 self-start sm:self-auto">
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-300 text-[11px] font-bold uppercase rounded-xs">
-                  <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
-                  Live Chart Sync
-                </span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-              {/* Left Column: Recharts Doughnut Chart */}
-              <div className="lg:col-span-7 flex flex-col items-center justify-center relative bg-gray-50/70 p-3 sm:p-4 rounded-sm border border-gray-200">
-                <div className="relative w-full h-[280px] sm:h-[300px] flex items-center justify-center">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={doughnutData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={76}
-                        outerRadius={108}
-                        paddingAngle={5}
-                        dataKey="value"
-                        animationDuration={800}
-                      >
-                        {doughnutData.map((entry, index) => (
-                          <Cell
-                            key={`cell-${index}`}
-                            fill={entry.color}
-                            stroke="#ffffff"
-                            strokeWidth={3}
-                          />
-                        ))}
-                      </Pie>
-                      <RechartsTooltip
-                        content={({ active, payload }) => {
-                          if (active && payload && payload.length) {
-                            const data = payload[0].payload;
-                            return (
-                              <div className="bg-gray-950 text-white p-3 rounded-md shadow-2xl border border-gray-700 text-xs">
-                                <div className="flex items-center gap-2 font-bold mb-1">
-                                  <span
-                                    className="w-3 h-3 rounded-full inline-block"
-                                    style={{ backgroundColor: data.color }}
-                                  />
-                                  <span className="text-sm">{data.name}</span>
-                                </div>
-                                <div className="text-base font-black text-amber-300">
-                                  {data.value} Jobs ({data.percentage}%)
-                                </div>
-                                <div className="text-[11px] text-gray-300 mt-1 leading-snug">
-                                  {data.description}
-                                </div>
-                              </div>
-                            );
-                          }
-                          return null;
+              {/* Entries list matching screenshot */}
+              <div className="bg-white divide-y divide-gray-200">
+                {notifications.filter((n) => !n.inTrash).slice(0, 10).map((item) => (
+                  <div
+                    key={item.id}
+                    className="p-2.5 sm:px-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div
+                        onClick={() => {
+                          setEditingItem(item);
+                          setEditPdfFileName(
+                            item.notificationUrl?.startsWith('data:')
+                              ? `${item.slug}-notification.pdf`
+                              : item.notificationUrl?.toLowerCase().endsWith('.pdf')
+                              ? item.notificationUrl.split('/').pop() || 'official_notice.pdf'
+                              : ''
+                          );
+                          setEditPdfUploadMode(item.notificationUrl?.startsWith('data:') ? 'upload' : 'url');
                         }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-
-                  {/* Centered Statistic Badge in Doughnut Hole */}
-                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
-                    <span className="text-3xl sm:text-4xl font-black text-[#850008] leading-none font-serif">
-                      {livePercentage}%
-                    </span>
-                    <span className="text-[11px] font-black text-emerald-700 uppercase tracking-widest mt-1">
-                      Live Active
-                    </span>
-                    <span className="text-[10px] font-bold text-gray-500 mt-0.5">
-                      {liveJobsCount} of {totalJobsCount} Jobs
-                    </span>
-                  </div>
-                </div>
-
-                {/* Bottom Legend Badges */}
-                <div className="flex flex-wrap items-center justify-center gap-4 mt-2 pt-2 border-t border-gray-200 text-xs w-full">
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-emerald-600 inline-block shadow-xs" />
-                    <span className="font-bold text-gray-800">
-                      Live Jobs: <span className="text-emerald-700 font-black">{liveJobsCount}</span> ({livePercentage}%)
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-red-600 inline-block shadow-xs" />
-                    <span className="font-bold text-gray-800">
-                      Expired Jobs: <span className="text-red-700 font-black">{expiredJobsCount}</span> ({expiredPercentage}%)
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Column: Key Insights & Action Panel */}
-              <div className="lg:col-span-5 flex flex-col justify-between space-y-4">
-                <div className="bg-[#f4f6f9] p-3.5 border border-gray-300">
-                  <h3 className="text-xs font-black text-[#001a40] uppercase tracking-wider mb-2 flex items-center justify-between">
-                    <span>Recruitment Health Gauge</span>
-                    <span className="text-emerald-700 font-black">{livePercentage}% Live</span>
-                  </h3>
-
-                  {/* Dual Color Progress Bar */}
-                  <div className="w-full h-4 bg-gray-200 rounded-full overflow-hidden flex shadow-inner">
-                    <div
-                      style={{ width: `${livePercentage}%` }}
-                      className="bg-emerald-600 h-full transition-all duration-500"
-                      title={`Live Jobs: ${liveJobsCount} (${livePercentage}%)`}
-                    />
-                    <div
-                      style={{ width: `${expiredPercentage}%` }}
-                      className="bg-red-600 h-full transition-all duration-500"
-                      title={`Expired Jobs: ${expiredJobsCount} (${expiredPercentage}%)`}
-                    />
-                  </div>
-                  <div className="flex justify-between text-[10px] text-gray-500 font-bold mt-1">
-                    <span>🟢 {liveJobsCount} Live</span>
-                    <span>🔴 {expiredJobsCount} Expired</span>
-                  </div>
-
-                  <div className="mt-3 space-y-2 text-xs divide-y divide-gray-200">
-                    <div className="pt-2 flex items-center justify-between">
-                      <span className="text-gray-700 font-semibold">Active Application Windows:</span>
-                      <span className="font-black text-emerald-700">{liveJobsCount} Positions</span>
-                    </div>
-                    <div className="pt-2 flex items-center justify-between">
-                      <span className="text-gray-700 font-semibold">Closed / Registration Concluded:</span>
-                      <span className="font-black text-red-700">{expiredJobsCount} Positions</span>
-                    </div>
-                    <div className="pt-2 flex items-center justify-between">
-                      <span className="text-gray-700 font-semibold">Urgent (Closing within 7 Days):</span>
-                      <span className="font-black text-amber-700">{expiringSoonList.length} Positions</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Quick Shortcuts */}
-                <div className="p-3 bg-[#fff0ee] border border-[#f9dcd9]">
-                  <span className="text-[11px] font-bold text-[#850008] uppercase block mb-1.5">
-                    Quick Editorial Shortcuts
-                  </span>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <button
-                      onClick={() => {
-                        setPubCategory('latest-job');
-                        setActiveTab('publish');
-                      }}
-                      className="p-2 bg-[#ab1818] hover:bg-[#850008] text-white font-bold text-center uppercase cursor-pointer rounded-xs transition-colors flex items-center justify-center gap-1"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">add_circle</span>
-                      <span>Post Live Job</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setDashboardJobFilter('expired');
-                        const el = document.getElementById('dashboard-jobs-table');
-                        if (el) el.scrollIntoView({ behavior: 'smooth' });
-                      }}
-                      className="p-2 bg-[#000066] hover:bg-[#000044] text-white font-bold text-center uppercase cursor-pointer rounded-xs transition-colors flex items-center justify-center gap-1"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">history</span>
-                      <span>Review Expired</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* INTERACTIVE JOBS TABLE: LIVE VS EXPIRED DRILL-DOWN */}
-          <div id="dashboard-jobs-table" className="bg-white border border-gray-300 shadow-xs">
-            <div className="bg-[#001a40] text-white p-3 flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider">
-                  Jobs Management &amp; Expiration Monitor ({filteredDashboardJobs.length} Jobs)
-                </h3>
-                <p className="text-[11px] text-gray-300">
-                  Filter live vs expired vacancies. Extend registration deadlines with 1-click to turn expired jobs live.
-                </p>
-              </div>
-
-              {/* Filter Tabs */}
-              <div className="flex flex-wrap items-center gap-1 text-xs">
-                <button
-                  onClick={() => setDashboardJobFilter('all')}
-                  className={`px-2.5 py-1 font-bold uppercase rounded-xs transition-colors cursor-pointer ${
-                    dashboardJobFilter === 'all'
-                      ? 'bg-[#ab1818] text-white'
-                      : 'bg-white/10 hover:bg-white/20 text-gray-200'
-                  }`}
-                >
-                  All ({totalJobsCount})
-                </button>
-                <button
-                  onClick={() => setDashboardJobFilter('live')}
-                  className={`px-2.5 py-1 font-bold uppercase rounded-xs transition-colors cursor-pointer flex items-center gap-1 ${
-                    dashboardJobFilter === 'live'
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-white/10 hover:bg-white/20 text-gray-200'
-                  }`}
-                >
-                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                  Live Only ({liveJobsCount})
-                </button>
-                <button
-                  onClick={() => setDashboardJobFilter('expired')}
-                  className={`px-2.5 py-1 font-bold uppercase rounded-xs transition-colors cursor-pointer flex items-center gap-1 ${
-                    dashboardJobFilter === 'expired'
-                      ? 'bg-red-600 text-white'
-                      : 'bg-white/10 hover:bg-white/20 text-gray-200'
-                  }`}
-                >
-                  <span className="w-2 h-2 rounded-full bg-red-400" />
-                  Expired Only ({expiredJobsCount})
-                </button>
-              </div>
-            </div>
-
-            {/* Search within Jobs */}
-            <div className="p-2.5 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
-              <span className="material-symbols-outlined text-gray-500 text-[18px]">search</span>
-              <input
-                type="text"
-                value={dashboardSearch}
-                onChange={(e) => setDashboardSearch(e.target.value)}
-                placeholder="Search job title, recruitment commission, department, or state..."
-                className="w-full text-xs p-1.5 border border-gray-300 bg-white focus:outline-none"
-              />
-              {dashboardSearch && (
-                <button
-                  onClick={() => setDashboardSearch('')}
-                  className="text-xs text-gray-500 hover:text-black font-bold px-1.5"
-                >
-                  Clear
-                </button>
-              )}
-            </div>
-
-            {/* Table */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="bg-gray-100 border-b border-gray-300 text-gray-700 font-extrabold uppercase text-[11px]">
-                    <th className="p-2.5">Recruitment Job Title</th>
-                    <th className="p-2.5">Organization / Dept</th>
-                    <th className="p-2.5 text-center">Vacancies</th>
-                    <th className="p-2.5">Last Date to Apply</th>
-                    <th className="p-2.5 text-center">Lifecycle Status</th>
-                    <th className="p-2.5 text-right">Admin Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {filteredDashboardJobs.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="p-8 text-center text-gray-500">
-                        No recruitment notifications match the selected filter.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredDashboardJobs.map((job) => (
-                      <tr
-                        key={job.id}
-                        className={`hover:bg-gray-50 transition-colors ${
-                          job.isExpired ? 'bg-red-50/25' : ''
-                        }`}
+                        className="font-bold text-gray-900 text-xs sm:text-sm hover:text-[#850008] cursor-pointer truncate"
+                        title={item.title}
                       >
-                        {/* Title */}
-                        <td className="p-2.5 font-bold text-gray-900 max-w-xs">
-                          <div className="flex items-center gap-1.5">
-                            <span
-                              className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                                job.isExpired ? 'bg-red-500' : 'bg-emerald-500'
-                              }`}
-                            />
-                            <span className="line-clamp-2">{job.title}</span>
-                          </div>
-                        </td>
+                        {item.title}
+                      </div>
+                      <div className="text-[11px] text-gray-500 flex items-center gap-2 mt-0.5">
+                        <span>
+                          {item.category === 'latest-job' && '💼 Job'}
+                          {item.category === 'result' && '🏆 Result'}
+                          {item.category === 'admit-card' && '🎫 Admit Card'}
+                          {item.category === 'answer-key' && '🔑 Answer Key'}
+                          {item.category === 'syllabus' && '📚 Syllabus'}
+                          {item.category === 'admission' && '🏫 Admission'}
+                          {item.category === 'certificate' && '📜 Certificate'}
+                          {item.category === 'outsourcing' && '🏢 Outsourcing'}
+                          {item.category === 'important' && '📌 Important'}
+                        </span>
+                        <span>•</span>
+                        <span>{item.postDate || '2026-09-28'}</span>
+                        <span>•</span>
+                        <span className="font-semibold text-gray-700">{item.organization}</span>
+                      </div>
+                    </div>
 
-                        {/* Org */}
-                        <td className="p-2.5 text-gray-700">
-                          <span className="font-semibold block">{job.organization}</span>
-                          <span className="text-[10px] text-gray-500">{job.state || 'All India'}</span>
-                        </td>
+                    <div className="flex items-center gap-1.5 self-start sm:self-center shrink-0">
+                      {item.applyUrl && (
+                        <a
+                          href={item.applyUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[10px] font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-300 px-2 py-0.5 rounded-xs flex items-center gap-1 cursor-pointer"
+                          title="Direct Portal Link"
+                        >
+                          <span>Portal</span>
+                          <span className="text-[10px]">↗</span>
+                        </a>
+                      )}
+                      {item.notificationUrl && (
+                        <a
+                          href={item.notificationUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[10px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-xs flex items-center gap-1 cursor-pointer"
+                          title="Direct Notification Download"
+                        >
+                          <span>Download</span>
+                          <span className="text-[10px]">📥</span>
+                        </a>
+                      )}
+                      <span className="bg-[#28a745] text-white text-[10px] font-black px-2 py-0.5 rounded-xs uppercase tracking-wider">
+                        {item.statusBadge || 'PUBLISHED'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
 
-                        {/* Vacancies */}
-                        <td className="p-2.5 text-center font-bold text-gray-800">
-                          {job.totalVacancies || 'Various'}
-                        </td>
+            {/* Right Column (5 cols on lg, approx 42%) */}
+            <div className="lg:col-span-5 border border-gray-300 rounded-xs overflow-hidden shadow-2xs flex flex-col justify-between">
+              <div>
+                {/* Dark Navy Header */}
+                <div className="bg-[#001a40] text-white px-3.5 py-2 flex items-center gap-2">
+                  <span className="text-xs">⚡</span>
+                  <span className="text-xs font-black uppercase tracking-wider">QUICK DIRECT ACCESS</span>
+                </div>
 
-                        {/* Last Date */}
-                        <td className="p-2.5 text-gray-800 font-semibold whitespace-nowrap">
-                          {job.lastDate || 'Not specified'}
-                        </td>
+                {/* 2-Column Buttons Grid */}
+                <div className="p-3 grid grid-cols-2 gap-2 bg-white">
+                  {[
+                    { label: 'Jobs Hub', icon: '💼', tab: 'jobs' },
+                    { label: 'Results Hub', icon: '🏆', tab: 'results' },
+                    { label: 'Admit Cards', icon: '🎫', tab: 'admit-cards' },
+                    { label: 'Answer Keys', icon: '🔑', tab: 'answer-keys' },
+                    { label: 'Syllabus Hub', icon: '📚', tab: 'syllabus' },
+                    { label: 'Admissions', icon: '🏫', tab: 'admissions' },
+                    { label: 'Certificate Verif.', icon: '📜', tab: 'certificates' },
+                    { label: 'Outsourcing Jobs', icon: '🏢', tab: 'outsourcing' },
+                    { label: 'Important Links', icon: '📌', tab: 'important' },
+                    { label: 'Flash Banner Tiles', icon: '⚡', tab: 'featured' },
+                    { label: 'Oscillating Ticker', icon: '📡', tab: 'ticker' },
+                    { label: 'Full Quick Form', icon: '➕', tab: 'publish' },
+                  ].map((item) => (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={() => setActiveTab(item.tab as AdminTab)}
+                      className="flex items-center gap-2 p-2.5 bg-white hover:bg-blue-50/50 border border-gray-200 hover:border-blue-300 rounded-xs text-xs font-bold text-gray-800 transition-all cursor-pointer shadow-2xs text-left"
+                    >
+                      <span className="text-base">{item.icon}</span>
+                      <span className="truncate">{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-                        {/* Lifecycle Status Pill */}
-                        <td className="p-2.5 text-center whitespace-nowrap">
-                          {job.isExpired ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-red-100 text-red-800 border border-red-300">
-                              <span className="w-1.5 h-1.5 rounded-full bg-red-600" />
-                              Expired
-                            </span>
-                          ) : (
-                            <span
-                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                                job.daysRemaining !== null && job.daysRemaining <= 7
-                                  ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                                  : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                              }`}
-                            >
-                              <span
-                                className={`w-1.5 h-1.5 rounded-full ${
-                                  job.daysRemaining !== null && job.daysRemaining <= 7
-                                    ? 'bg-amber-600'
-                                    : 'bg-emerald-600'
-                                }`}
-                              />
-                              {job.statusText}
-                            </span>
-                          )}
-                        </td>
-
-                        {/* Actions */}
-                        <td className="p-2.5 text-right whitespace-nowrap space-x-1.5">
-                          {job.isExpired && (
-                            <button
-                              type="button"
-                              onClick={() => handleQuickExtendLastDate(job.id, 30)}
-                              className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-xs cursor-pointer shadow-2xs"
-                              title="Extend Last Date by 30 days and mark Live"
-                            >
-                              + Extend 30D
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => setEditingItem(job)}
-                            className="px-2 py-1 bg-[#000066] hover:bg-[#000044] text-white text-[11px] font-bold rounded-xs cursor-pointer shadow-2xs"
-                          >
-                            Edit
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+              {/* Bottom Footer inside card */}
+              <div className="p-2.5 px-3 bg-gray-50 border-t border-gray-200 flex items-center justify-between text-xs text-gray-600 font-semibold">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+                  <span>Public Status: Online &amp; Synced</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={goHome}
+                  className="text-blue-700 hover:underline font-bold cursor-pointer flex items-center gap-0.5"
+                >
+                  <span>Open Website</span>
+                  <span>↗</span>
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Quick Editorial Tasks Panel */}
-          <div className="bg-[#f4f6f9] p-3.5 border border-gray-300">
-            <h3 className="text-xs font-bold text-[#001a40] uppercase mb-2">
-              Additional Editorial Operations
-            </h3>
-            <div className="flex flex-wrap gap-2 text-xs">
-              <button
-                onClick={() => {
-                  setPubCategory('latest-job');
-                  setActiveTab('publish');
-                }}
-                className="bg-[#850008] text-white font-bold px-3 py-1.5 uppercase hover:bg-[#ab1818] cursor-pointer"
-              >
-                + Post New Job Vacancy
-              </button>
-              <button
-                onClick={() => {
-                  setPubCategory('admit-card');
-                  setActiveTab('publish');
-                }}
-                className="bg-[#004076] text-white font-bold px-3 py-1.5 uppercase hover:bg-[#00579e] cursor-pointer"
-              >
-                + Release Admit Card
-              </button>
-              <button
-                onClick={() => {
-                  setPubCategory('result');
-                  setActiveTab('publish');
-                }}
-                className="bg-[#2e7d32] text-white font-bold px-3 py-1.5 uppercase hover:bg-green-700 cursor-pointer"
-              >
-                + Announce Exam Result
-              </button>
-              <button
-                onClick={() => setActiveTab('ticker')}
-                className="bg-[#faaf47] text-[#001a40] font-bold px-3 py-1.5 uppercase hover:bg-yellow-500 cursor-pointer"
-              >
-                Manage Breaking Ticker
-              </button>
+          {/* Bottom Status Banner */}
+          <div className="bg-[#fff8f7] border border-[#f5c6cb] rounded-xs p-3 sm:p-4 text-xs">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="font-black text-[#850008] uppercase tracking-wide">
+                PERSISTENCE &amp; LIVE SERVER STATUS
+              </span>
+              <span className="bg-[#28a745] text-white text-[10px] font-black px-1.5 py-0.5 rounded-xs tracking-wider uppercase">
+                ONLINE
+              </span>
             </div>
+            <p className="text-gray-700 leading-relaxed font-medium">
+              All changes made in this admin panel write directly to disk (<code className="bg-white px-1 py-0.5 border border-gray-300 text-[11px] font-mono text-gray-800">src/data/db.json</code>). Changes immediately update on the homepage, category pages, search bar, and individual post pages. Direct portal links and downloads are available for every item.
+            </p>
           </div>
         </div>
       )}
+
+      {/* 9 CATEGORY SPECIFIC MANAGEMENT HUBS */}
+      {activeTab === 'jobs' && renderCategoryView('latest-job', 'Latest Jobs', 'सरकारी नौकरी', '💼')}
+      {activeTab === 'results' && renderCategoryView('result', 'Exam Results', 'परीक्षा परिणाम', '🏆')}
+      {activeTab === 'admit-cards' && renderCategoryView('admit-card', 'Admit Cards', 'प्रवेश पत्र', '🎫')}
+      {activeTab === 'answer-keys' && renderCategoryView('answer-key', 'Answer Keys', 'उत्तर कुंजी', '🔑')}
+      {activeTab === 'syllabus' && renderCategoryView('syllabus', 'Syllabus & Pattern', 'पाठ्यक्रम', '📚')}
+      {activeTab === 'admissions' && renderCategoryView('admission', 'Admissions', 'प्रवेश', '🏫')}
+      {activeTab === 'certificates' && renderCategoryView('certificate', 'Certificates & Verif.', 'प्रमाण पत्र सत्यापन', '📜')}
+      {activeTab === 'outsourcing' && renderCategoryView('outsourcing', 'Outsourcing Jobs', 'आउटसोर्सिंग भर्ती', '🏢')}
+      {activeTab === 'important' && renderCategoryView('important', 'Important Links', 'महत्वपूर्ण लिंक', '📌')}
 
       {/* TAB 2: QUICK PUBLISH FORM */}
       {activeTab === 'publish' && (
@@ -1573,6 +1692,8 @@ export const AdminCMS: React.FC = () => {
                   <option value="result">Result (परीक्षा परिणाम)</option>
                   <option value="answer-key">Answer Key & Objection (उत्तर कुंजी)</option>
                   <option value="syllabus">Syllabus & Exam Pattern</option>
+                  <option value="admission">Admission (प्रवेश परीक्षा / काउंसलिंग)</option>
+                  <option value="certificate">Certificate Verification (प्रमाण पत्र सत्यापन)</option>
                   <option value="outsourcing">Outsourcing & Contract Jobs</option>
                   <option value="important">Important Portals & Forms</option>
                 </select>
@@ -2525,24 +2646,7 @@ export const AdminCMS: React.FC = () => {
                 </div>
               </div>
 
-              {/* Row 3: Download Official Notification PDF */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-2 items-center bg-white p-2.5 border border-gray-300 shadow-2xs">
-                <div className="font-bold text-[#850008]">
-                  Download Official Notification PDF
-                  <span className="block text-[10px] text-gray-500 font-normal">Link: Click Here to View Notice</span>
-                </div>
-                <div className="md:col-span-3">
-                  <input
-                    type="url"
-                    value={pubNoticeUrl}
-                    onChange={(e) => setPubNoticeUrl(e.target.value)}
-                    placeholder="https://official-board.gov.in/notification.pdf"
-                    className="w-full border border-gray-300 p-2 text-xs focus:outline-none bg-white"
-                  />
-                </div>
-              </div>
-
-              {/* Row 4: Official Commission Website */}
+              {/* Row 3: Official Commission Website (Placed before Notification PDF as requested) */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-2 items-center bg-white p-2.5 border border-gray-300 shadow-2xs">
                 <div className="font-bold text-[#850008]">
                   Official Commission Website
@@ -2559,6 +2663,155 @@ export const AdminCMS: React.FC = () => {
                 </div>
               </div>
 
+              {/* Row 4: Download Official Notification PDF (With PDF Drag-and-Drop Uploader) */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-2 items-start bg-white p-2.5 border border-gray-300 shadow-2xs">
+                <div className="font-bold text-[#850008] pt-1">
+                  Download Official Notification PDF
+                  <span className="block text-[10px] text-gray-500 font-normal">Upload PDF document or paste URL</span>
+                  <div className="flex items-center gap-1 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setPdfUploadMode('upload')}
+                      className={`text-[10px] px-2 py-0.5 font-bold uppercase rounded-xs border cursor-pointer ${
+                        pdfUploadMode === 'upload'
+                          ? 'bg-[#ab1818] text-white border-[#ab1818]'
+                          : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
+                      }`}
+                    >
+                      Upload PDF
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPdfUploadMode('url')}
+                      className={`text-[10px] px-2 py-0.5 font-bold uppercase rounded-xs border cursor-pointer ${
+                        pdfUploadMode === 'url'
+                          ? 'bg-[#ab1818] text-white border-[#ab1818]'
+                          : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
+                      }`}
+                    >
+                      Web Link URL
+                    </button>
+                  </div>
+                </div>
+
+                <div className="md:col-span-3 space-y-2">
+                  {pdfUploadMode === 'upload' ? (
+                    <div>
+                      {/* Drag & Drop PDF Dropzone */}
+                      <div
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          setIsDraggingPdf(true);
+                        }}
+                        onDragLeave={() => setIsDraggingPdf(false)}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          setIsDraggingPdf(false);
+                          if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                            handlePdfUpload(e.dataTransfer.files[0], false);
+                          }
+                        }}
+                        onClick={() => document.getElementById('pdf-upload-input')?.click()}
+                        className={`border-2 border-dashed rounded-xs p-4 text-center cursor-pointer transition-colors ${
+                          isDraggingPdf
+                            ? 'border-[#ab1818] bg-[#fee2de]'
+                            : pubNoticeUrl.startsWith('data:application/pdf') || pdfFileName
+                            ? 'border-emerald-600 bg-emerald-50'
+                            : 'border-gray-400 hover:border-[#ab1818] bg-gray-50 hover:bg-[#fff9f8]'
+                        }`}
+                      >
+                        <input
+                          id="pdf-upload-input"
+                          type="file"
+                          accept="application/pdf,.pdf"
+                          className="hidden"
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files[0]) {
+                              handlePdfUpload(e.target.files[0], false);
+                            }
+                          }}
+                        />
+
+                        {pubNoticeUrl.startsWith('data:application/pdf') || pdfFileName ? (
+                          <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 text-left">
+                              <span className="material-symbols-outlined text-[32px] text-red-600">
+                                picture_as_pdf
+                              </span>
+                              <div>
+                                <p className="font-bold text-gray-900 text-xs">
+                                  {pdfFileName || 'official_notification.pdf'}
+                                </p>
+                                <p className="text-[10px] text-emerald-700 font-bold">
+                                  ✅ PDF Attached successfully {pdfFileSize && `(${pdfFileSize})`}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenPdfPreview(pubNoticeUrl, pdfFileName || 'Official_Notification.pdf')}
+                                className="px-2.5 py-1 bg-[#000066] hover:bg-[#001a40] text-white text-[11px] font-bold rounded-xs cursor-pointer inline-flex items-center gap-1 shadow-xs"
+                                title="Open interactive PDF viewer"
+                              >
+                                <span>Preview</span>
+                                <span className="material-symbols-outlined text-[13px]">visibility</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => downloadPdfFile(pubNoticeUrl, pdfFileName || 'Official_Notification.pdf')}
+                                className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-bold rounded-xs cursor-pointer inline-flex items-center gap-1 shadow-xs"
+                                title="Download PDF directly to computer"
+                              >
+                                <span>Download</span>
+                                <span className="material-symbols-outlined text-[13px]">download</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPdfFileName('');
+                                  setPdfFileSize('');
+                                  setPubNoticeUrl('https://official-board.gov.in/notification.pdf');
+                                }}
+                                className="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold rounded-xs cursor-pointer"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center gap-1 text-gray-600 py-1">
+                            <span className="material-symbols-outlined text-[32px] text-[#ab1818]">
+                              upload_file
+                            </span>
+                            <p className="font-bold text-xs text-gray-800">
+                              Drop your official notification PDF here, or <span className="text-[#ab1818] underline">browse file</span>
+                            </p>
+                            <p className="text-[10px] text-gray-500">
+                              Upload official PDF recruitment notice (.pdf document)
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <input
+                        type="url"
+                        value={pubNoticeUrl}
+                        onChange={(e) => setPubNoticeUrl(e.target.value)}
+                        placeholder="https://official-board.gov.in/notification.pdf"
+                        className="w-full border border-gray-300 p-2 text-xs focus:outline-none bg-white font-medium"
+                      />
+                      <span className="text-[10px] text-gray-500 block mt-1">
+                        Paste the direct URL to the official notification PDF if hosted externally.
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {/* Row 5: Telegram & WhatsApp Alerts */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div className="bg-white p-2.5 border border-gray-300">
@@ -2569,7 +2822,7 @@ export const AdminCMS: React.FC = () => {
                     type="url"
                     value={pubTelegramUrl}
                     onChange={(e) => setPubTelegramUrl(e.target.value)}
-                    placeholder="https://t.me"
+                    placeholder="https://t.me/getsarkariresultme"
                     className="w-full border border-gray-300 p-1.5 text-xs focus:outline-none"
                   />
                 </div>
@@ -2781,6 +3034,8 @@ export const AdminCMS: React.FC = () => {
                 <option value="result">Result</option>
                 <option value="answer-key">Answer Key</option>
                 <option value="syllabus">Syllabus</option>
+                <option value="admission">Admissions</option>
+                <option value="certificate">Certificates & Verification</option>
                 <option value="outsourcing">Outsourcing</option>
                 <option value="important">Important</option>
               </select>
@@ -2838,7 +3093,17 @@ export const AdminCMS: React.FC = () => {
                       {contentFilter === 'all' ? (
                         <>
                           <button
-                            onClick={() => setEditingItem(item)}
+                            onClick={() => {
+                              setEditingItem(item);
+                              setEditPdfFileName(
+                                item.notificationUrl?.startsWith('data:')
+                                  ? `${item.slug}-notification.pdf`
+                                  : item.notificationUrl?.toLowerCase().endsWith('.pdf')
+                                  ? item.notificationUrl.split('/').pop() || 'official_notice.pdf'
+                                  : ''
+                              );
+                              setEditPdfUploadMode(item.notificationUrl?.startsWith('data:') ? 'upload' : 'url');
+                            }}
                             className="text-[#000dff] hover:underline font-bold cursor-pointer"
                           >
                             Edit
@@ -3092,7 +3357,12 @@ export const AdminCMS: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 6: SETTINGS & RESET */}
+      {/* TAB 6: COMPETITOR RADAR & SEO */}
+      {activeTab === 'radar' && (
+        <CompetitorRadar onImportToPublish={handleImportToPublish} />
+      )}
+
+      {/* TAB 7: SETTINGS & RESET */}
       {activeTab === 'settings' && (
         <div className="space-y-4 text-xs">
           <div className="bg-[#fff0ee] p-3 border border-[#f9dcd9]">
@@ -3123,6 +3393,8 @@ export const AdminCMS: React.FC = () => {
           </div>
         </div>
       )}
+        </div>
+      </div>
 
       {/* EDIT MODAL - FULL SUITE WITH CALENDAR PICKERS AND LINKS */}
       {editingItem && (
@@ -3357,6 +3629,8 @@ export const AdminCMS: React.FC = () => {
                     <option value="result">Result</option>
                     <option value="answer-key">Answer Key & Objection</option>
                     <option value="syllabus">Syllabus</option>
+                    <option value="admission">Admissions</option>
+                    <option value="certificate">Certificates & Verification</option>
                     <option value="outsourcing">Outsourcing</option>
                     <option value="important">Important</option>
                   </select>
@@ -3541,16 +3815,7 @@ export const AdminCMS: React.FC = () => {
                   />
                 </div>
 
-                <div>
-                  <label className="font-bold text-gray-700 block mb-0.5">Download Official Notification PDF URL</label>
-                  <input
-                    type="url"
-                    value={editingItem.notificationUrl}
-                    onChange={(e) => setEditingItem({ ...editingItem, notificationUrl: e.target.value })}
-                    className="w-full border border-gray-300 p-1.5 focus:outline-none bg-white"
-                  />
-                </div>
-
+                {/* Row 3: Official Commission Website URL */}
                 <div>
                   <label className="font-bold text-gray-700 block mb-0.5">Official Commission Website URL</label>
                   <input
@@ -3559,6 +3824,112 @@ export const AdminCMS: React.FC = () => {
                     onChange={(e) => setEditingItem({ ...editingItem, officialUrl: e.target.value })}
                     className="w-full border border-gray-300 p-1.5 focus:outline-none bg-white"
                   />
+                </div>
+
+                {/* Row 4: Download Official Notification PDF (With Upload Dropzone) */}
+                <div className="bg-white p-2.5 border border-gray-300 rounded-xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="font-bold text-[#850008] block">Download Official Notification PDF</label>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setEditPdfUploadMode('upload')}
+                        className={`text-[10px] px-2 py-0.5 font-bold uppercase rounded-xs border cursor-pointer ${
+                          editPdfUploadMode === 'upload'
+                            ? 'bg-[#ab1818] text-white border-[#ab1818]'
+                            : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
+                        }`}
+                      >
+                        Upload PDF
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditPdfUploadMode('url')}
+                        className={`text-[10px] px-2 py-0.5 font-bold uppercase rounded-xs border cursor-pointer ${
+                          editPdfUploadMode === 'url'
+                            ? 'bg-[#ab1818] text-white border-[#ab1818]'
+                            : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
+                        }`}
+                      >
+                        Web Link URL
+                      </button>
+                    </div>
+                  </div>
+
+                  {editPdfUploadMode === 'upload' ? (
+                    <div>
+                      <div
+                        onClick={() => document.getElementById('edit-pdf-upload-input')?.click()}
+                        className="border-2 border-dashed border-gray-300 hover:border-[#ab1818] rounded-xs p-3 text-center cursor-pointer bg-gray-50 hover:bg-[#fff9f8] transition-colors"
+                      >
+                        <input
+                          id="edit-pdf-upload-input"
+                          type="file"
+                          accept="application/pdf,.pdf"
+                          className="hidden"
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files[0]) {
+                              handlePdfUpload(e.target.files[0], true);
+                            }
+                          }}
+                        />
+                        {editingItem.notificationUrl?.startsWith('data:application/pdf') || editPdfFileName ? (
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 text-left">
+                              <span className="material-symbols-outlined text-[26px] text-red-600">picture_as_pdf</span>
+                              <div>
+                                <p className="font-bold text-gray-900 text-xs">{editPdfFileName || 'official_notice.pdf'}</p>
+                                <p className="text-[10px] text-emerald-700 font-bold">✅ PDF Attached</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenPdfPreview(editingItem.notificationUrl || '', editPdfFileName || `${editingItem.slug}-notification.pdf`)}
+                                className="px-2 py-0.5 bg-[#000066] hover:bg-[#001a40] text-white text-[10px] font-bold rounded-xs cursor-pointer inline-flex items-center gap-1 shadow-xs"
+                                title="Open interactive PDF viewer"
+                              >
+                                <span>Preview</span>
+                                <span className="material-symbols-outlined text-[12px]">visibility</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => downloadPdfFile(editingItem.notificationUrl || '', editPdfFileName || `${editingItem.slug}-notification.pdf`)}
+                                className="px-2 py-0.5 bg-emerald-700 hover:bg-emerald-800 text-white text-[10px] font-bold rounded-xs cursor-pointer inline-flex items-center gap-1 shadow-xs"
+                                title="Download PDF to computer"
+                              >
+                                <span>Download</span>
+                                <span className="material-symbols-outlined text-[12px]">download</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditPdfFileName('');
+                                  setEditingItem({ ...editingItem, notificationUrl: '' });
+                                }}
+                                className="px-2 py-0.5 bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold rounded-xs cursor-pointer"
+                              >
+                                Clear
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center gap-2 text-gray-600 py-1">
+                            <span className="material-symbols-outlined text-[24px] text-[#ab1818]">upload_file</span>
+                            <span className="font-bold text-xs">Click to browse or drop replacement PDF notice (.pdf)</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <input
+                      type="url"
+                      value={editingItem.notificationUrl}
+                      onChange={(e) => setEditingItem({ ...editingItem, notificationUrl: e.target.value })}
+                      className="w-full border border-gray-300 p-1.5 focus:outline-none bg-white text-xs font-medium"
+                      placeholder="https://official-board.gov.in/notification.pdf"
+                    />
+                  )}
                 </div>
               </div>
 
@@ -3619,6 +3990,63 @@ export const AdminCMS: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Interactive PDF Preview In-App Modal */}
+      {pdfPreviewModal && pdfPreviewModal.isOpen && (
+        <div className="fixed inset-0 z-[100] bg-black/75 flex items-center justify-center p-2 sm:p-4 backdrop-blur-xs">
+          <div className="bg-white rounded shadow-2xl w-full max-w-4xl h-[88vh] flex flex-col overflow-hidden border border-gray-400">
+            {/* Modal Header */}
+            <div className="bg-[#000066] text-white px-4 py-2.5 flex items-center justify-between">
+              <div className="flex items-center gap-2 overflow-hidden">
+                <span className="material-symbols-outlined text-[22px] text-red-400">picture_as_pdf</span>
+                <span className="font-bold text-xs sm:text-sm truncate max-w-xs sm:max-w-md">
+                  {pdfPreviewModal.fileName}
+                </span>
+                <span className="hidden sm:inline bg-white/20 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded">
+                  PDF Preview
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => downloadPdfFile(pdfPreviewModal.url, pdfPreviewModal.fileName)}
+                  className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xs cursor-pointer inline-flex items-center gap-1 shadow-xs"
+                  title="Download PDF to computer"
+                >
+                  <span className="material-symbols-outlined text-[14px]">download</span>
+                  <span>Download</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openPdfInBrowser(pdfPreviewModal.url, pdfPreviewModal.fileName)}
+                  className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xs cursor-pointer inline-flex items-center gap-1 shadow-xs"
+                  title="Open in new browser tab"
+                >
+                  <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                  <span>New Tab</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPdfPreviewModal(null)}
+                  className="p-1 hover:bg-white/20 rounded-xs cursor-pointer text-white"
+                  title="Close Preview"
+                >
+                  <span className="material-symbols-outlined text-[20px]">close</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body with embedded PDF viewer */}
+            <div className="flex-1 bg-gray-200 relative overflow-hidden flex flex-col">
+              <iframe
+                src={pdfPreviewModal.url}
+                className="w-full flex-1 border-0 bg-white"
+                title="PDF Preview Viewer"
+              />
+            </div>
           </div>
         </div>
       )}
