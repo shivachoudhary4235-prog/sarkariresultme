@@ -1,9 +1,14 @@
 import type { NextConfig } from 'next';
 import path from 'path';
 
+// Point to the true repository root (3 levels up: apps/admin -> apps -> sarkari-result -> root)
+const repoRoot = typeof __dirname !== 'undefined'
+  ? path.resolve(__dirname, '../../../')
+  : path.resolve(process.cwd(), '../../../');
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  outputFileTracingRoot: path.resolve(process.cwd(), '../../'),
+  outputFileTracingRoot: repoRoot,
   images: {
     remotePatterns: [
       {
