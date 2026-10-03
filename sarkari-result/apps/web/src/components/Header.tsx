@@ -69,10 +69,10 @@ export const Header: React.FC<HeaderProps> = () => {
 
             <div className="flex flex-col text-left">
               <span className="text-xl sm:text-2xl md:text-[26px] font-black text-[#850008] tracking-tight leading-none uppercase font-serif">
-                SARKARI RESULT®
+                SARKARI RESULT ME®
               </span>
               <span className="text-xs sm:text-[13px] md:text-sm text-gray-700 font-extrabold tracking-wider mt-1">
-                WWW.SARKARIRESULT.COM
+                WWW.SARKARIRESULTME.COM
               </span>
             </div>
           </button>
@@ -89,13 +89,13 @@ export const Header: React.FC<HeaderProps> = () => {
           </button>
         </div>
 
-        {/* Center Main Headings - HERO SECTION: SARKARI RESULT ONLY */}
+        {/* Center Main Headings - HERO SECTION */}
         <div className="flex flex-col items-center justify-center text-center px-2 py-0.5">
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[48px] font-black text-[#ab1818] uppercase tracking-normal font-serif leading-none drop-shadow-2xs">
-            SARKARI RESULT
+            SARKARI RESULT ME
           </h1>
           <p className="text-sm sm:text-base md:text-[17px] text-[#000066] tracking-wider font-black mt-1 uppercase">
-            WWW.SARKARIRESULT.COM
+            WWW.SARKARIRESULTME.COM
           </p>
         </div>
 

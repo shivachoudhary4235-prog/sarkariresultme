@@ -3,8 +3,8 @@
 import React, { useState } from 'react';
 
 export default function SettingsAdminPage() {
-  const [siteName, setSiteName] = useState('Sarkari Result®');
-  const [siteUrl, setSiteUrl] = useState('https://www.sarkariresult.com');
+  const [siteName, setSiteName] = useState('Sarkari Result Me®');
+  const [siteUrl, setSiteUrl] = useState('https://www.sarkariresultme.com');
   const [trademarkWord, setTrademarkWord] = useState('4531613');
   const [trademarkDevice, setTrademarkDevice] = useState('5569166');
   const [supportEmail, setSupportEmail] = useState('getsarkarinaukrimeinfo@gmail.com');
